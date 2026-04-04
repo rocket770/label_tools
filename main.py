@@ -61,28 +61,77 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.current_backup = None
         self.mask_stack = deque(maxlen=10)
-        shortcut_cancel = QShortcut(QKeySequence("Ctrl+Z"), self)
-        shortcut_cancel.activated.connect(self.cancel_action)
 
-        shortcut_left = QShortcut(QKeySequence(Qt.Key_Left), self)
-        shortcut_left.activated.connect(self.go_left)
+        self.shortcut_cancel = QShortcut(QKeySequence("Ctrl+Z"), self)
+        self.shortcut_cancel.setContext(Qt.ApplicationShortcut)
+        self.shortcut_cancel.activated.connect(self.cancel_action)
 
-        shortcut_right = QShortcut(QKeySequence(Qt.Key_Right), self)
-        shortcut_right.activated.connect(self.go_right)
+        self.shortcut_left = QShortcut(QKeySequence(Qt.Key_Left), self)
+        self.shortcut_left.setContext(Qt.ApplicationShortcut)
+        self.shortcut_left.activated.connect(self.go_left)
 
-        shortcut_multi_edit = QShortcut(QKeySequence("Ctrl+M"), self)
-        shortcut_multi_edit.activated.connect(lambda: self.multieditor_checkBox.setChecked(not self.multieditor_checkBox.isChecked()))
+        self.shortcut_right = QShortcut(QKeySequence(Qt.Key_Right), self)
+        self.shortcut_right.setContext(Qt.ApplicationShortcut)
+        self.shortcut_right.activated.connect(self.go_right)
 
-        shortcut_eraser = QShortcut(QKeySequence("Ctrl+E"), self)
-        shortcut_eraser.activated.connect(lambda: self.radio_eraser.setChecked(True))
+        self.shortcut_multi_edit = QShortcut(QKeySequence("Ctrl+M"), self)
+        self.shortcut_multi_edit.setContext(Qt.ApplicationShortcut)
+        self.shortcut_multi_edit.activated.connect(
+            lambda: self.multieditor_checkBox.setChecked(
+                not self.multieditor_checkBox.isChecked()
+            )
+        )
 
-        shortcut_pen = QShortcut(QKeySequence("Ctrl+P"), self)
-        shortcut_pen.activated.connect(lambda: self.radio_pen.setChecked(True))
+        self.shortcut_eraser = QShortcut(QKeySequence("Ctrl+E"), self)
+        self.shortcut_eraser.setContext(Qt.ApplicationShortcut)
+        self.shortcut_eraser.activated.connect(lambda: self.radio_eraser.setChecked(True))
 
-        shortcut_save = QShortcut(QKeySequence("Ctrl+S"), self)
-        shortcut_save.activated.connect(self.save)
+        self.shortcut_pen = QShortcut(QKeySequence("Ctrl+P"), self)
+        self.shortcut_pen.setContext(Qt.ApplicationShortcut)
+        self.shortcut_pen.activated.connect(lambda: self.radio_pen.setChecked(True))
+
+        self.shortcut_save = QShortcut(QKeySequence("Ctrl+S"), self)
+        self.shortcut_save.setContext(Qt.ApplicationShortcut)
+        self.shortcut_save.activated.connect(self.save)
+
+        # intercept Ctrl+Z before focused editors like spinbox line edits consume it
+        QApplication.instance().installEventFilter(self)
 
         self.setAcceptDrops(True)
+
+    def eventFilter(self, obj, event):
+        if event.type() == event.KeyPress:
+            if event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_Z:
+                self.cancel_action()
+                return True
+
+            if event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_S:
+                self.save()
+                return True
+
+            if event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_E:
+                self.radio_eraser.setChecked(True)
+                return True
+
+            if event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_P:
+                self.radio_pen.setChecked(True)
+                return True
+
+            if event.modifiers() == Qt.ControlModifier and event.key() == Qt.Key_M:
+                self.multieditor_checkBox.setChecked(
+                    not self.multieditor_checkBox.isChecked()
+                )
+                return True
+
+            if event.modifiers() == Qt.NoModifier and event.key() == Qt.Key_Left:
+                self.go_left()
+                return True
+
+            if event.modifiers() == Qt.NoModifier and event.key() == Qt.Key_Right:
+                self.go_right()
+                return True
+
+        return super().eventFilter(obj, event)
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
