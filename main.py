@@ -1,20 +1,37 @@
 import os
 import sys
+from collections import deque
 from datetime import datetime
-from PIL import Image
-import cv2
+
 import bigfish.stack as bf_stack
+import cv2
 import matplotlib
 import numpy as np
-from color_mapper import ColorMapper
-from collections import deque
-
-from PyQt5.QtWidgets import QApplication, QMainWindow, QFileDialog, QShortcut
-from PyQt5.QtGui import QImage, QKeySequence
+from PIL import Image
 from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QImage, QKeySequence
+from PyQt5.QtWidgets import (
+    QApplication,
+    QFileDialog,
+    QHBoxLayout,
+    QLabel,
+    QMainWindow,
+    QRadioButton,
+    QShortcut,
+)
 
+from color_mapper import ColorMapper
+from tools.label_tools import format_label_text, get_label_display_rgb
+from tools.mask_ops import (
+    apply_mask_brush,
+    copy_mask_region,
+    count_cells,
+    delete_mask_region,
+    paste_mask_region,
+    flood_fill_mask_region,
+)
+from tools.tool_modes import ToolMode
 from ui_window import Ui_MainWindow
-
 
 class MainWindow(QMainWindow, Ui_MainWindow):
 
@@ -43,7 +60,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.image_label.pasteAct.connect(self.paste_mask)
         self.image_label.deleteAct.connect(self.delete_mask)
         self.image_label.commitAct.connect(self.commit_mask)
-
+        self.image_label.pickAct.connect(self.pick_label)
+        self.image_label.fillAct.connect(self.fill_mask)
+        
+        self.radio_fill.toggled.connect(self.change_mode)
         self.radio_mouse.toggled.connect(self.change_mode)
         self.radio_pen.toggled.connect(self.change_mode)
         self.radio_eraser.toggled.connect(self.change_mode)
@@ -62,7 +82,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.current_backup = None
         self.mask_stack = deque(maxlen=10)
 
-        # keep persistent references
         self.shortcut_cancel = QShortcut(QKeySequence("Ctrl+Z"), self)
         self.shortcut_cancel.setContext(Qt.WindowShortcut)
         self.shortcut_cancel.activated.connect(self.cancel_action)
@@ -95,14 +114,35 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.shortcut_save.setContext(Qt.WindowShortcut)
         self.shortcut_save.activated.connect(self.save)
 
-        # make the annotation widget able to take focus when clicked
+        self.shortcut_fill = QShortcut(QKeySequence("Ctrl+F"), self)
+        self.shortcut_fill.setContext(Qt.WindowShortcut)
+        self.shortcut_fill.activated.connect(lambda: self.radio_fill.setChecked(True))
+
         self.image_label.setFocusPolicy(Qt.ClickFocus)
+
+        # preview lives next to the Label spinbox
+        self.label_color_preview = QLabel(self.centralwidget)
+        self.label_color_preview.setFixedSize(24, 24)
+        self.label_color_preview.setStyleSheet("border: 1px solid black;")
+
+        self.label_color_text = QLabel(self.centralwidget)
+        self.label_color_text.setText("")
+
+        self.horizontalLayout_3.addWidget(self.label_color_preview)
+        self.horizontalLayout_3.addWidget(self.label_color_text)
+
+        self.radio_picker = QRadioButton("Eyedropper", self.groupBox)
+        self.verticalLayout.addWidget(self.radio_picker)
+        self.radio_picker.toggled.connect(self.change_mode)
+
+        self.label_spinBox.valueChanged.connect(self.update_selected_label_preview)
+        self.update_selected_label_preview()
 
         self.setAcceptDrops(True)
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
-            event.acceptProposedAction()  # 接受拖拽
+            event.acceptProposedAction()
         else:
             event.ignore()
 
@@ -117,7 +157,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 elif fn.endswith('.npz'):
                     self.open_npz_file(fn)
             self.update_image()
-    
+
     def go_left(self):
         self.frame_slider.setValue(max(self.current_frame - 1, 0))
         self.change_frame()
@@ -129,38 +169,72 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def copy_mask(self, x, y):
         if self.mask_data is None:
             return
-        mask_val = self.mask_data[self.current_frame, y, x]
-        mask_bool = self.mask_data[self.current_frame] == mask_val
-        self.copyed_frame[:] = 0
-        self.copyed_frame[mask_bool] = mask_val
+        mask_val, self.copyed_frame = copy_mask_region(
+            self.mask_data[self.current_frame],
+            x,
+            y,
+            self.copyed_frame,
+        )
         print(mask_val)
 
     def paste_mask(self):
         if self.mask_data is None:
             return
-        print(f'Paste')
-        mask_bool = self.copyed_frame != 0
-        self.mask_data[self.current_frame, mask_bool] = self.copyed_frame[mask_bool]
+        print('Paste')
+        self.mask_data[self.current_frame] = paste_mask_region(
+            self.mask_data[self.current_frame],
+            self.copyed_frame,
+        )
         self.update_image()
 
     def delete_mask(self, x, y):
         if self.mask_data is None:
             return
-        print(f'Delete')
-        mask_val = self.mask_data[self.current_frame, y, x]
-        mask_bool = self.mask_data[self.current_frame] == mask_val
-        self.mask_data[self.current_frame, mask_bool] = 0
+        print('Delete')
+        _, self.mask_data[self.current_frame] = delete_mask_region(
+            self.mask_data[self.current_frame],
+            x,
+            y,
+        )
         self.update_image()
 
     def change_mode(self):
-        if self.tif_array is None:
+        if self.tif_array is None and self.mask_data is None:
             return
+
         if self.radio_mouse.isChecked():
-            self.image_label.set_mode(0)
+            self.image_label.set_mode(ToolMode.MOUSE)
         elif self.radio_eraser.isChecked():
-            self.image_label.set_mode(1)
+            self.image_label.set_mode(ToolMode.ERASER)
         elif self.radio_pen.isChecked():
-            self.image_label.set_mode(2)
+            self.image_label.set_mode(ToolMode.PEN)
+        elif hasattr(self, 'radio_picker') and self.radio_picker.isChecked():
+            self.image_label.set_mode(ToolMode.EYEDROPPER)
+        elif hasattr(self, 'radio_fill') and self.radio_fill.isChecked():
+            self.image_label.set_mode(ToolMode.FILL)
+
+    def update_selected_label_preview(self):
+        label_val = int(self.label_spinBox.value())
+        r, g, b = get_label_display_rgb(self.color_mapper.color_table, label_val)
+
+        self.label_color_preview.setStyleSheet(
+            f"background-color: rgb({r}, {g}, {b}); border: 1px solid black;"
+        )
+        self.label_color_text.setText(format_label_text(label_val))
+
+    def pick_label(self, x, y):
+        if self.mask_data is None:
+            return
+
+        label_val = int(self.mask_data[self.current_frame, y, x])
+        self.detail_label.setText(f'{x} {y} {label_val}')
+
+        if label_val != 0:
+            self.label_spinBox.setValue(label_val)
+            self.update_selected_label_preview()
+            self.msg_label.setText(f'Picked label: {label_val}')
+        else:
+            self.msg_label.setText('Picked background (0), current label unchanged')
 
     def save(self):
         if self.mask_data is not None:
@@ -181,27 +255,42 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def erase_mask(self, xl, xr, yl, yr):
         print('erase')
+        if self.mask_data is None:
+            return
         if self.current_backup is None:
             self.current_backup = self.mask_data.copy()
-        if self.multieditor_checkBox.isChecked():
-            l = self.l_spinBox.value()
-            r = self.r_spinBox.value()
-            self.mask_data[l:r+1, yl:yr, xl:xr] = 0
-        else:
-            self.mask_data[self.current_frame, yl:yr, xl:xr] = 0
+        self.mask_data = apply_mask_brush(
+            self.mask_data,
+            self.current_frame,
+            xl,
+            xr,
+            yl,
+            yr,
+            0,
+            multi_edit=self.multieditor_checkBox.isChecked(),
+            left_frame=self.l_spinBox.value(),
+            right_frame=self.r_spinBox.value(),
+        )
         self.update_image()
 
     def draw_mask(self, xl, xr, yl, yr):
         print('draw')
+        if self.mask_data is None:
+            return
         if self.current_backup is None:
             self.current_backup = self.mask_data.copy()
-        mask_val = self.label_spinBox.value()
-        if self.multieditor_checkBox.isChecked():
-            l = self.l_spinBox.value()
-            r = self.r_spinBox.value()
-            self.mask_data[l:r+1, yl:yr, xl:xr] = mask_val
-        else:
-            self.mask_data[self.current_frame, yl:yr, xl:xr] = mask_val
+        self.mask_data = apply_mask_brush(
+            self.mask_data,
+            self.current_frame,
+            xl,
+            xr,
+            yl,
+            yr,
+            self.label_spinBox.value(),
+            multi_edit=self.multieditor_checkBox.isChecked(),
+            left_frame=self.l_spinBox.value(),
+            right_frame=self.r_spinBox.value(),
+        )
         self.update_image()
 
     def commit_mask(self):
@@ -229,19 +318,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.update_image()
 
     def open_files(self):
-        file_paths, _ = QFileDialog.getOpenFileNames(self, 'select files', filter="Images (*.tif *.npy *.npz)")
+        file_paths, _ = QFileDialog.getOpenFileNames(self, 'select files', filter='Images (*.tif *.npy *.npz)')
 
         for fn in file_paths:
             if fn.endswith('.tif'):
                 self.open_tif_file(fn)
-
             elif fn.endswith('.npz'):
                 self.open_npz_file(fn)
 
         self.update_image()
 
     def open_tif_file(self, fn):
-        self.tif_fn_label.setText('loaded')
+        self.tif_fn_label.setText('Loaded')
         with Image.open(fn) as image:
             self.total_frames = image.n_frames
             self.tif_array = np.zeros((image.n_frames, image.height, image.width), dtype=np.uint16)
@@ -258,9 +346,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.frame_slider.setValue(0)
         self.frame_label.setText(f'{self.current_frame} / {self.total_frames - 1}')
         self.radio_mouse.setChecked(True)
-        
+
     def open_npz_file(self, fn):
-        self.mask_fn_label.setText('loaded')
+        self.mask_fn_label.setText('Loaded')
         data = np.load(fn)['arr_0']
         self.mask_data = data
         self.copyed_frame = np.zeros((data.shape[1], data.shape[2]), dtype=data.dtype)
@@ -269,7 +357,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def load_tif_frame(self):
         if self.tif_array is None:
             self.tif_checkbox.setChecked(False)
-            return
+            self.tif_fn_label.setText('None')
+            return None
+
         image_data = self.tif_array[self.current_frame]
         if self.normalize_checkBox.isChecked():
             min_val = image_data.min()
@@ -287,15 +377,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             max_val = 65535
             norm_data = np.interp(image_data, (min_val, max_val), (0, 255)).astype(np.uint8)
             colored_data = cv2.applyColorMap(norm_data, self.selected_colormap)
+
         return colored_data
 
     def load_mask_frame(self):
         if self.mask_data is None:
             self.mask_checkbox.setChecked(False)
-            return
+            self.mask_fn_label.setText('None')
+            return None
+
         mask_data = self.mask_data[self.current_frame].astype(np.uint8)
         return self.color_mapper.apply_custom_color_map_with_alpha(mask_data, 128)
-    
+
     def update_image(self):
         tif_frame = self.load_tif_frame()
         mask_frame = self.load_mask_frame()
@@ -310,26 +403,72 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 width, height, _ = mask_frame.shape
             if cnt == 2:
                 mask_rgb = mask_frame[:, :, :3]
-                mask_alpha = mask_frame[:, :, 3] / 255.
+                mask_alpha = mask_frame[:, :, 3] / 255.0
                 tif_rgb = tif_frame[:, :, :3]
                 blended_rgb = tif_rgb * (1 - mask_alpha[..., None]) + mask_rgb * mask_alpha[..., None]
                 blended_rgb = blended_rgb.astype(np.uint8)
                 data = blended_rgb.data
             else:
-
                 if self.tif_checkbox.isChecked():
                     data = tif_frame.data
                 else:
-                    data = mask_frame[:,:,:3].copy().data
+                    data = mask_frame[:, :, :3].copy().data
             qimg = QImage(data, width, height, QImage.Format_RGB888)
-            # qimg = qimg.scaled(width * 2, height * 2)
             self.image_label.load_image(qimg)
-            # self.image_label.setPixmap(QPixmap.fromImage(qimg))
 
         if self.mask_data is not None:
-            val = np.unique(self.mask_data[self.current_frame]).shape[0] - 1
+            val = count_cells(self.mask_data[self.current_frame])
             self.stat_label.setText(f'Current cells: {val}')
-    
+
+    def fill_mask(self, x, y):
+        print("fill_mask called", x, y)
+        if self.mask_data is None:
+            return
+
+        if self.current_backup is None:
+            self.current_backup = self.mask_data.copy()
+
+        target_label = int(self.label_spinBox.value())
+
+        if self.multieditor_checkBox.isChecked():
+            left_frame = self.l_spinBox.value()
+            right_frame = self.r_spinBox.value()
+
+            changed_any = False
+            for frame_idx in range(left_frame, right_frame + 1):
+                old_label, updated_frame, changed = flood_fill_mask_region(
+                    self.mask_data[frame_idx],
+                    x,
+                    y,
+                    target_label,
+                )
+                if changed:
+                    self.mask_data[frame_idx] = updated_frame
+                    changed_any = True
+
+            if changed_any:
+                self.msg_label.setText(f'Filled region(s) with label {target_label}')
+                self.update_image()
+                self.commit_mask()
+            else:
+                self.current_backup = None
+                self.msg_label.setText('Fill skipped: source label already matches selected label')
+        else:
+            old_label, updated_frame, changed = flood_fill_mask_region(
+                self.mask_data[self.current_frame],
+                x,
+                y,
+                target_label,
+            )
+
+            if changed:
+                self.mask_data[self.current_frame] = updated_frame
+                self.update_image()
+                self.commit_mask()
+                self.msg_label.setText(f'Filled label {old_label} -> {target_label}')
+            else:
+                self.current_backup = None
+                self.msg_label.setText('Fill skipped: source label already matches selected label')
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

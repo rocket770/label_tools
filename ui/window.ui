@@ -19,12 +19,42 @@
   <property name="windowTitle">
    <string>MainWindow</string>
   </property>
+
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout_2">
+    <property name="horizontalSpacing">
+     <number>8</number>
+    </property>
+    <property name="verticalSpacing">
+     <number>6</number>
+    </property>
+    <property name="leftMargin">
+     <number>6</number>
+    </property>
+    <property name="topMargin">
+     <number>6</number>
+    </property>
+    <property name="rightMargin">
+     <number>6</number>
+    </property>
+    <property name="bottomMargin">
+     <number>6</number>
+    </property>
+
     <item row="0" column="0">
      <layout class="QVBoxLayout" name="verticalLayout_6">
+      <property name="sizeConstraint">
+       <enum>QLayout::SetFixedSize</enum>
+      </property>
+      <property name="spacing">
+       <number>8</number>
+      </property>
+
       <item>
        <layout class="QHBoxLayout" name="horizontalLayout">
+        <property name="spacing">
+         <number>6</number>
+        </property>
         <item>
          <widget class="QLabel" name="label">
           <property name="text">
@@ -34,6 +64,18 @@
         </item>
         <item>
          <widget class="QComboBox" name="colormap_combo">
+          <property name="minimumSize">
+           <size>
+            <width>190</width>
+            <height>0</height>
+           </size>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>190</width>
+            <height>16777215</height>
+           </size>
+          </property>
           <property name="currentIndex">
            <number>10</number>
           </property>
@@ -146,8 +188,12 @@
         </item>
        </layout>
       </item>
+
       <item>
        <layout class="QHBoxLayout" name="horizontalLayout_4">
+        <property name="spacing">
+         <number>6</number>
+        </property>
         <item>
          <widget class="QCheckBox" name="big_fish_checkBox">
           <property name="text">
@@ -170,8 +216,12 @@
         </item>
        </layout>
       </item>
+
       <item>
        <layout class="QVBoxLayout" name="verticalLayout_2">
+        <property name="spacing">
+         <number>6</number>
+        </property>
         <item>
          <widget class="QLabel" name="stat_label">
           <property name="text">
@@ -195,8 +245,12 @@
         </item>
        </layout>
       </item>
+
       <item>
        <layout class="QHBoxLayout" name="horizontalLayout_2">
+        <property name="spacing">
+         <number>6</number>
+        </property>
         <item>
          <widget class="QCheckBox" name="multieditor_checkBox">
           <property name="text">
@@ -213,6 +267,12 @@
         </item>
         <item>
          <widget class="QSpinBox" name="l_spinBox">
+          <property name="maximumSize">
+           <size>
+            <width>70</width>
+            <height>16777215</height>
+           </size>
+          </property>
           <property name="maximum">
            <number>259</number>
           </property>
@@ -227,6 +287,12 @@
         </item>
         <item>
          <widget class="QSpinBox" name="r_spinBox">
+          <property name="maximumSize">
+           <size>
+            <width>70</width>
+            <height>16777215</height>
+           </size>
+          </property>
           <property name="maximum">
            <number>259</number>
           </property>
@@ -234,12 +300,22 @@
         </item>
        </layout>
       </item>
+
       <item>
        <widget class="QGroupBox" name="groupBox">
+        <property name="sizePolicy">
+         <sizepolicy hsizetype="Preferred" vsizetype="Fixed">
+          <horstretch>0</horstretch>
+          <verstretch>0</verstretch>
+         </sizepolicy>
+        </property>
         <property name="title">
          <string>Tools</string>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout">
+         <property name="spacing">
+          <number>6</number>
+         </property>
          <item>
           <layout class="QGridLayout" name="gridLayout">
            <item row="0" column="0">
@@ -266,13 +342,24 @@
              </property>
             </widget>
            </item>
+           <item row="3" column="0">
+            <widget class="QRadioButton" name="radio_fill">
+              <property name="text">
+              <string>Fill</string>
+              </property>
+            </widget>
+            </item>
           </layout>
          </item>
         </layout>
        </widget>
       </item>
+
       <item>
        <layout class="QHBoxLayout" name="horizontalLayout_3">
+        <property name="spacing">
+         <number>6</number>
+        </property>
         <item>
          <widget class="QLabel" name="label_4">
           <property name="text">
@@ -282,6 +369,12 @@
         </item>
         <item>
          <widget class="QSpinBox" name="label_spinBox">
+          <property name="maximumSize">
+           <size>
+            <width>70</width>
+            <height>16777215</height>
+           </size>
+          </property>
           <property name="minimum">
            <number>1</number>
           </property>
@@ -292,12 +385,33 @@
         </item>
        </layout>
       </item>
+
       <item>
-       <layout class="QVBoxLayout" name="verticalLayout_4">
+       <spacer name="verticalSpacer_bottomPush">
+        <property name="orientation">
+         <enum>Qt::Vertical</enum>
+        </property>
+        <property name="sizeType">
+         <enum>QSizePolicy::Expanding</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>20</width>
+          <height>40</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+
+      <item>
+       <layout class="QHBoxLayout" name="horizontalLayout_mask">
+        <property name="spacing">
+         <number>6</number>
+        </property>
         <item>
          <widget class="QCheckBox" name="mask_checkbox">
           <property name="text">
-           <string>mask</string>
+           <string>Mask:</string>
           </property>
           <property name="checked">
            <bool>true</bool>
@@ -319,12 +433,16 @@
         </item>
        </layout>
       </item>
+
       <item>
-       <layout class="QVBoxLayout" name="verticalLayout_3">
+       <layout class="QHBoxLayout" name="horizontalLayout_tif">
+        <property name="spacing">
+         <number>6</number>
+        </property>
         <item>
          <widget class="QCheckBox" name="tif_checkbox">
           <property name="text">
-           <string>tif</string>
+           <string>Tif:</string>
           </property>
           <property name="checked">
            <bool>true</bool>
@@ -346,14 +464,48 @@
         </item>
        </layout>
       </item>
+
      </layout>
     </item>
+
     <item row="0" column="1">
+     <widget class="QFrame" name="panel_separator">
+      <property name="minimumSize">
+       <size>
+        <width>1</width>
+        <height>0</height>
+       </size>
+      </property>
+      <property name="maximumSize">
+       <size>
+        <width>1</width>
+        <height>16777215</height>
+       </size>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">background-color: rgb(145, 142, 142);</string>
+      </property>
+      <property name="frameShape">
+       <enum>QFrame::VLine</enum>
+      </property>
+      <property name="frameShadow">
+       <enum>QFrame::Plain</enum>
+      </property>
+      <property name="lineWidth">
+       <number>1</number>
+      </property>
+     </widget>
+    </item>
+
+    <item row="0" column="2">
      <layout class="QVBoxLayout" name="verticalLayout_5">
+      <property name="spacing">
+       <number>6</number>
+      </property>
       <item>
        <widget class="MyImageLabel" name="image_label">
         <property name="sizePolicy">
-         <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
+         <sizepolicy hsizetype="Preferred" vsizetype="Expanding">
           <horstretch>0</horstretch>
           <verstretch>0</verstretch>
          </sizepolicy>
@@ -380,6 +532,9 @@
       </item>
       <item>
        <layout class="QHBoxLayout" name="horizontalLayout_5">
+        <property name="spacing">
+         <number>6</number>
+        </property>
         <item>
          <widget class="QPushButton" name="pushButton_left">
           <property name="font">
@@ -424,8 +579,10 @@
       </item>
      </layout>
     </item>
+
    </layout>
   </widget>
+
   <widget class="QMenuBar" name="menubar">
    <property name="geometry">
     <rect>
@@ -444,7 +601,9 @@
    </widget>
    <addaction name="menuFile"/>
   </widget>
+
   <widget class="QStatusBar" name="statusbar"/>
+
   <action name="actionload">
    <property name="text">
     <string>load</string>
@@ -456,6 +615,7 @@
    </property>
   </action>
  </widget>
+
  <customwidgets>
   <customwidget>
    <class>MyImageLabel</class>
