@@ -161,19 +161,40 @@ class MyImageLabel(QLabel):
     
     def mousePressEvent(self, event):
         print(f'Mouse pressed {self.mode}')
+
         if event.button() == Qt.LeftButton:
             self.left_button_pressed = True
+
+            # if some editor widget currently has focus (spinbox/combo internal line edit, etc.),
+            # clear it so the caret stops blinking and shortcuts return to the annotation area
+            app = self.window().windowHandle().screen().context() if False else None  # no-op placeholder
+            focused = self.window().focusWidget()
+            if focused is not None and focused is not self:
+                focused.clearFocus()
+
+            # move focus onto the image widget
+            self.setFocus(Qt.MouseFocusReason)
+
         if event.button() == Qt.RightButton:
             self.right_click_loc = event.x(), event.y()
+            focused = self.window().focusWidget()
+            if focused is not None and focused is not self:
+                focused.clearFocus()
+            self.setFocus(Qt.MouseFocusReason)
+
         if self.mode == 0 and event.button() == Qt.LeftButton:
             pos = event.pos()
             self.select_rect.setTopLeft(pos)
+
         if self.mode == 1 and self.left_button_pressed:
             x, y = event.x(), event.y()
             self.eraserAct.emit(*self.now_rect(x, y))
+
         if self.mode == 2 and self.left_button_pressed:
             x, y = event.x(), event.y()
             self.penAct.emit(*self.now_rect(x, y))
+
+        return super().mousePressEvent(event)
 
 
     def mouseReleaseEvent(self, event):
