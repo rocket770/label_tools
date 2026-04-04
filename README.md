@@ -18,6 +18,8 @@ Shortcuts
 
 - Ctrl + P — Select Pen
 
+- Ctr + F - Use Fill Tool
+
 - Left / Right Arrow — Switch Frames
 
 快捷键 
