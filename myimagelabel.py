@@ -3,6 +3,7 @@ from PyQt5.QtGui import QImage, QPixmap, QCursor, QPainter, QColor
 from PyQt5.QtCore import Qt, pyqtSignal, QRect
 
 from tools.tool_modes import ToolMode
+from tools.mask_ops import flood_fill_mask_region
 
 class MyImageLabel(QLabel):
 
@@ -14,6 +15,7 @@ class MyImageLabel(QLabel):
     pasteAct = pyqtSignal()
     commitAct = pyqtSignal()
     pickAct = pyqtSignal(int, int)
+    fillAct = pyqtSignal(int, int)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -195,6 +197,10 @@ class MyImageLabel(QLabel):
         if self.mode == ToolMode.EYEDROPPER and event.button() == Qt.LeftButton:
             ox, oy = self.get_original_pos(event.x(), event.y())
             self.pickAct.emit(ox, oy)
+
+        if self.mode == ToolMode.FILL and event.button() == Qt.LeftButton:
+            ox, oy = self.get_original_pos(event.x(), event.y())
+            self.fillAct.emit(ox, oy)
 
         return super().mousePressEvent(event)
 

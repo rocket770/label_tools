@@ -1,7 +1,8 @@
-from enum import IntEnum
+from enum import Enum, auto
 
-class ToolMode(IntEnum):
-    MOUSE = 0
-    ERASER = 1
-    PEN = 2
-    EYEDROPPER = 3
+class ToolMode(Enum):
+    MOUSE = auto()
+    ERASER = auto()
+    PEN = auto()
+    EYEDROPPER = auto()
+    FILL = auto()

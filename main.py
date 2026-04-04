@@ -28,6 +28,7 @@ from tools.mask_ops import (
     count_cells,
     delete_mask_region,
     paste_mask_region,
+    flood_fill_mask_region,
 )
 from tools.tool_modes import ToolMode
 from ui_window import Ui_MainWindow
@@ -60,7 +61,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.image_label.deleteAct.connect(self.delete_mask)
         self.image_label.commitAct.connect(self.commit_mask)
         self.image_label.pickAct.connect(self.pick_label)
-
+        self.image_label.fillAct.connect(self.fill_mask)
+        
+        self.radio_fill.toggled.connect(self.change_mode)
         self.radio_mouse.toggled.connect(self.change_mode)
         self.radio_pen.toggled.connect(self.change_mode)
         self.radio_eraser.toggled.connect(self.change_mode)
@@ -110,6 +113,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.shortcut_save = QShortcut(QKeySequence("Ctrl+S"), self)
         self.shortcut_save.setContext(Qt.WindowShortcut)
         self.shortcut_save.activated.connect(self.save)
+
+        self.shortcut_fill = QShortcut(QKeySequence("Ctrl+F"), self)
+        self.shortcut_fill.setContext(Qt.WindowShortcut)
+        self.shortcut_fill.activated.connect(lambda: self.radio_fill.setChecked(True))
 
         self.image_label.setFocusPolicy(Qt.ClickFocus)
 
@@ -203,6 +210,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.image_label.set_mode(ToolMode.PEN)
         elif hasattr(self, 'radio_picker') and self.radio_picker.isChecked():
             self.image_label.set_mode(ToolMode.EYEDROPPER)
+        elif hasattr(self, 'radio_fill') and self.radio_fill.isChecked():
+            self.image_label.set_mode(ToolMode.FILL)
 
     def update_selected_label_preview(self):
         label_val = int(self.label_spinBox.value())
@@ -410,6 +419,56 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self.mask_data is not None:
             val = count_cells(self.mask_data[self.current_frame])
             self.stat_label.setText(f'Current cells: {val}')
+
+    def fill_mask(self, x, y):
+        print("fill_mask called", x, y)
+        if self.mask_data is None:
+            return
+
+        if self.current_backup is None:
+            self.current_backup = self.mask_data.copy()
+
+        target_label = int(self.label_spinBox.value())
+
+        if self.multieditor_checkBox.isChecked():
+            left_frame = self.l_spinBox.value()
+            right_frame = self.r_spinBox.value()
+
+            changed_any = False
+            for frame_idx in range(left_frame, right_frame + 1):
+                old_label, updated_frame, changed = flood_fill_mask_region(
+                    self.mask_data[frame_idx],
+                    x,
+                    y,
+                    target_label,
+                )
+                if changed:
+                    self.mask_data[frame_idx] = updated_frame
+                    changed_any = True
+
+            if changed_any:
+                self.msg_label.setText(f'Filled region(s) with label {target_label}')
+                self.update_image()
+                self.commit_mask()
+            else:
+                self.current_backup = None
+                self.msg_label.setText('Fill skipped: source label already matches selected label')
+        else:
+            old_label, updated_frame, changed = flood_fill_mask_region(
+                self.mask_data[self.current_frame],
+                x,
+                y,
+                target_label,
+            )
+
+            if changed:
+                self.mask_data[self.current_frame] = updated_frame
+                self.update_image()
+                self.commit_mask()
+                self.msg_label.setText(f'Filled label {old_label} -> {target_label}')
+            else:
+                self.current_backup = None
+                self.msg_label.setText('Fill skipped: source label already matches selected label')
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
