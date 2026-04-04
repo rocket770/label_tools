@@ -61,26 +61,42 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.current_backup = None
         self.mask_stack = deque(maxlen=10)
-        shortcut_cancel = QShortcut(QKeySequence("Ctrl+Z"), self)
-        shortcut_cancel.activated.connect(self.cancel_action)
 
-        shortcut_left = QShortcut(QKeySequence(Qt.Key_Left), self)
-        shortcut_left.activated.connect(self.go_left)
+        # keep persistent references
+        self.shortcut_cancel = QShortcut(QKeySequence("Ctrl+Z"), self)
+        self.shortcut_cancel.setContext(Qt.WindowShortcut)
+        self.shortcut_cancel.activated.connect(self.cancel_action)
 
-        shortcut_right = QShortcut(QKeySequence(Qt.Key_Right), self)
-        shortcut_right.activated.connect(self.go_right)
+        self.shortcut_left = QShortcut(QKeySequence(Qt.Key_Left), self)
+        self.shortcut_left.setContext(Qt.WindowShortcut)
+        self.shortcut_left.activated.connect(self.go_left)
 
-        shortcut_multi_edit = QShortcut(QKeySequence("Ctrl+M"), self)
-        shortcut_multi_edit.activated.connect(lambda: self.multieditor_checkBox.setChecked(not self.multieditor_checkBox.isChecked()))
+        self.shortcut_right = QShortcut(QKeySequence(Qt.Key_Right), self)
+        self.shortcut_right.setContext(Qt.WindowShortcut)
+        self.shortcut_right.activated.connect(self.go_right)
 
-        shortcut_eraser = QShortcut(QKeySequence("Ctrl+E"), self)
-        shortcut_eraser.activated.connect(lambda: self.radio_eraser.setChecked(True))
+        self.shortcut_multi_edit = QShortcut(QKeySequence("Ctrl+M"), self)
+        self.shortcut_multi_edit.setContext(Qt.WindowShortcut)
+        self.shortcut_multi_edit.activated.connect(
+            lambda: self.multieditor_checkBox.setChecked(
+                not self.multieditor_checkBox.isChecked()
+            )
+        )
 
-        shortcut_pen = QShortcut(QKeySequence("Ctrl+P"), self)
-        shortcut_pen.activated.connect(lambda: self.radio_pen.setChecked(True))
+        self.shortcut_eraser = QShortcut(QKeySequence("Ctrl+E"), self)
+        self.shortcut_eraser.setContext(Qt.WindowShortcut)
+        self.shortcut_eraser.activated.connect(lambda: self.radio_eraser.setChecked(True))
 
-        shortcut_save = QShortcut(QKeySequence("Ctrl+S"), self)
-        shortcut_save.activated.connect(self.save)
+        self.shortcut_pen = QShortcut(QKeySequence("Ctrl+P"), self)
+        self.shortcut_pen.setContext(Qt.WindowShortcut)
+        self.shortcut_pen.activated.connect(lambda: self.radio_pen.setChecked(True))
+
+        self.shortcut_save = QShortcut(QKeySequence("Ctrl+S"), self)
+        self.shortcut_save.setContext(Qt.WindowShortcut)
+        self.shortcut_save.activated.connect(self.save)
+
+        # make the annotation widget able to take focus when clicked
+        self.image_label.setFocusPolicy(Qt.ClickFocus)
 
         self.setAcceptDrops(True)
 
