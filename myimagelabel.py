@@ -16,6 +16,8 @@ class MyImageLabel(QLabel):
     commitAct = pyqtSignal()
     pickAct = pyqtSignal(int, int)
     fillAct = pyqtSignal(int, int)
+    mergeAct = pyqtSignal(int, int)
+    splitAct = pyqtSignal(int, int, int, int)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -36,6 +38,7 @@ class MyImageLabel(QLabel):
         self.tool_size = 5
         self.img = None
         self.left_button_pressed = False
+        self.split_start = None
 
     def contextMenuEvent(self, ev):
         menu = QMenu(self)
@@ -55,13 +58,13 @@ class MyImageLabel(QLabel):
 
     def set_mode(self, mode):
         self.mode = ToolMode(mode)
-        if self.mode in (ToolMode.ERASER, ToolMode.PEN):
+        if self.mode in (ToolMode.ERASER, ToolMode.PEN, ToolMode.SPLIT):
             scale = self.get_now_scale()
             self.tool_size = max(int(round(scale)), 1)
         self.update_tool()
 
     def update_tool(self):
-        if self.mode in (ToolMode.ERASER, ToolMode.PEN):
+        if self.mode in (ToolMode.ERASER, ToolMode.PEN, ToolMode.SPLIT):
             pixmap = QPixmap(self.tool_size * 2, self.tool_size * 2)
             pixmap.fill(Qt.GlobalColor.transparent)
 
@@ -78,6 +81,12 @@ class MyImageLabel(QLabel):
             self.setCursor(Qt.CursorShape.CrossCursor)
         else:
             self.setCursor(Qt.CursorShape.ArrowCursor)
+
+    def get_tool_diameter_in_image(self):
+        if self.img is None:
+            return 1
+        scale = self.get_now_scale()
+        return max(int(round((self.tool_size * 2) / scale)), 1)
 
     def now_rect(self, x, y):
         ox, oy = self.get_original_pos(x, y)
@@ -202,6 +211,13 @@ class MyImageLabel(QLabel):
             ox, oy = self.get_original_pos(event.x(), event.y())
             self.fillAct.emit(ox, oy)
 
+        if self.mode == ToolMode.MERGE and event.button() == Qt.LeftButton:
+            ox, oy = self.get_original_pos(event.x(), event.y())
+            self.mergeAct.emit(ox, oy)
+
+        if self.mode == ToolMode.SPLIT and event.button() == Qt.LeftButton:
+            self.split_start = self.get_original_pos(event.x(), event.y())
+
         return super().mousePressEvent(event)
 
     def mouseReleaseEvent(self, event):
@@ -231,6 +247,13 @@ class MyImageLabel(QLabel):
             self.f_ry = float(self.ry)
         elif self.mode in (ToolMode.ERASER, ToolMode.PEN) and event.button() == Qt.LeftButton:
             self.commitAct.emit()
+
+        elif self.mode == ToolMode.SPLIT and event.button() == Qt.LeftButton:
+            if self.split_start is not None:
+                x1, y1 = self.split_start
+                x2, y2 = self.get_original_pos(event.x(), event.y())
+                self.splitAct.emit(x1, y1, x2, y2)
+                self.split_start = None
 
         self.show_image()
 

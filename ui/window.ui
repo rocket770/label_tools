@@ -344,11 +344,32 @@
            </item>
            <item row="3" column="0">
             <widget class="QRadioButton" name="radio_fill">
-              <property name="text">
+             <property name="text">
               <string>Fill</string>
-              </property>
+             </property>
             </widget>
-            </item>
+           </item>
+           <item row="4" column="0">
+            <widget class="QRadioButton" name="radio_picker">
+             <property name="text">
+              <string>Eyedropper</string>
+             </property>
+            </widget>
+           </item>
+           <item row="5" column="0">
+            <widget class="QRadioButton" name="radio_merge">
+             <property name="text">
+              <string>Merge</string>
+             </property>
+            </widget>
+           </item>
+           <item row="6" column="0">
+            <widget class="QRadioButton" name="radio_split">
+             <property name="text">
+              <string>Split</string>
+             </property>
+            </widget>
+           </item>
           </layout>
          </item>
         </layout>

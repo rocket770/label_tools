@@ -31,6 +31,9 @@ from tools.mask_ops import (
     flood_fill_mask_region,
 )
 from tools.tool_modes import ToolMode
+from tools.merge import merge_labels_in_range
+from tools.split import find_available_label, split_label_with_line
+
 from ui_window import Ui_MainWindow
 
 class MainWindow(QMainWindow, Ui_MainWindow):
@@ -67,9 +70,15 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.radio_mouse.toggled.connect(self.change_mode)
         self.radio_pen.toggled.connect(self.change_mode)
         self.radio_eraser.toggled.connect(self.change_mode)
+        self.radio_merge.toggled.connect(self.change_mode)
+        self.radio_split.toggled.connect(self.change_mode)
+        self.radio_picker.toggled.connect(self.change_mode)
 
         self.pushButton_left.clicked.connect(self.go_left)
         self.pushButton_right.clicked.connect(self.go_right)
+
+        self.image_label.mergeAct.connect(self.merge_labels)
+        self.image_label.splitAct.connect(self.split_label)
 
         self.total_frames = 0
         self.current_frame = 0
@@ -131,12 +140,10 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.horizontalLayout_3.addWidget(self.label_color_preview)
         self.horizontalLayout_3.addWidget(self.label_color_text)
 
-        self.radio_picker = QRadioButton("Eyedropper", self.groupBox)
-        self.verticalLayout.addWidget(self.radio_picker)
-        self.radio_picker.toggled.connect(self.change_mode)
-
         self.label_spinBox.valueChanged.connect(self.update_selected_label_preview)
         self.update_selected_label_preview()
+
+        self.pending_merge_label = None
 
         self.setAcceptDrops(True)
 
@@ -202,6 +209,21 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         if self.tif_array is None and self.mask_data is None:
             return
 
+        if self.radio_split.isChecked():
+            if self.multieditor_checkBox.isChecked():
+                self.multieditor_checkBox.blockSignals(True)
+                self.multieditor_checkBox.setChecked(False)
+                self.multieditor_checkBox.blockSignals(False)
+
+            self.multieditor_checkBox.setEnabled(False)
+            self.l_spinBox.setValue(self.current_frame)
+            self.r_spinBox.setValue(self.current_frame)
+        else:
+            self.multieditor_checkBox.setEnabled(True)
+
+        if not self.radio_merge.isChecked():
+            self.pending_merge_label = None
+
         if self.radio_mouse.isChecked():
             self.image_label.set_mode(ToolMode.MOUSE)
         elif self.radio_eraser.isChecked():
@@ -210,8 +232,12 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.image_label.set_mode(ToolMode.PEN)
         elif hasattr(self, 'radio_picker') and self.radio_picker.isChecked():
             self.image_label.set_mode(ToolMode.EYEDROPPER)
-        elif hasattr(self, 'radio_fill') and self.radio_fill.isChecked():
+        elif self.radio_fill.isChecked():
             self.image_label.set_mode(ToolMode.FILL)
+        elif self.radio_merge.isChecked():
+            self.image_label.set_mode(ToolMode.MERGE)
+        elif self.radio_split.isChecked():
+            self.image_label.set_mode(ToolMode.SPLIT)
 
     def update_selected_label_preview(self):
         label_val = int(self.label_spinBox.value())
@@ -460,7 +486,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 self.commit_mask()
             else:
                 self.current_backup = None
-                self.msg_label.setText('Fill skipped: source label already matches selected label')
+                self.msg_label.setText('Fill skiped: source label already matches selected label')
         else:
             old_label, updated_frame, changed = flood_fill_mask_region(
                 self.mask_data[self.current_frame],
@@ -477,6 +503,101 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             else:
                 self.current_backup = None
                 self.msg_label.setText('Fill skipped: source label already matches selected label')
+
+    def merge_labels(self, x, y):
+        if self.mask_data is None:
+            return
+
+        clicked_label = int(self.mask_data[self.current_frame, y, x])
+
+        if clicked_label == 0:
+            self.msg_label.setText('Merge: clicked background')
+            return
+
+        if self.pending_merge_label is None:
+            self.pending_merge_label = clicked_label
+            self.label_spinBox.setValue(clicked_label)
+            self.update_selected_label_preview()
+            self.msg_label.setText(
+                f'Merge: selected label {clicked_label}. Click the second label to merge into it.'
+            )
+            return
+
+        keep_label = self.pending_merge_label
+        merge_label = clicked_label
+
+        if merge_label == keep_label:
+            self.msg_label.setText('Merge: second click is the same label, choose a different cell')
+            return
+
+        if self.multieditor_checkBox.isChecked():
+            left_frame = self.l_spinBox.value()
+            right_frame = self.r_spinBox.value()
+        else:
+            left_frame = self.current_frame
+            right_frame = self.current_frame
+
+        if self.current_backup is None:
+            self.current_backup = self.mask_data.copy()
+
+        updated_mask, changed_frames = merge_labels_in_range(
+            self.mask_data,
+            keep_label,
+            merge_label,
+            left_frame,
+            right_frame,
+        )
+
+        if changed_frames:
+            self.mask_data = updated_mask
+            self.update_image()
+            self.commit_mask()
+            self.msg_label.setText(f'Merged label {merge_label} into {keep_label}')
+        else:
+            self.current_backup = None
+            self.msg_label.setText('Merge: nothing chaged in selected frame range')
+
+        self.pending_merge_label = None
+
+    def split_label(self, x1, y1, x2, y2):
+        if self.mask_data is None:
+            return
+
+        current_frame_mask = self.mask_data[self.current_frame]
+
+        new_label = find_available_label(self.mask_data)
+
+        if new_label is None:
+            self.msg_label.setText('Split: no free label IDs left (1-255)')
+            return
+
+        if self.current_backup is None:
+            self.current_backup = self.mask_data.copy()
+
+        cut_thickness = self.image_label.get_tool_diameter_in_image()
+
+        updated_frame, target_label, changed, message = split_label_with_line(
+            current_frame_mask,
+            x1,
+            y1,
+            x2,
+            y2,
+            new_label=new_label,
+            cut_thickness=cut_thickness,
+        )
+
+        if not changed:
+            self.current_backup = None
+            self.msg_label.setText(message)
+            return
+
+        self.mask_data[self.current_frame] = updated_frame
+        self.label_spinBox.setValue(new_label)
+        self.update_selected_label_preview()
+        self.update_image()
+        self.commit_mask()
+
+        self.msg_label.setText(f'Split label {target_label} into {target_label} and {new_label}')
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
