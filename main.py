@@ -340,12 +340,20 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.big_fish_array = bf_stack.rescale(self.tif_array, 0)
         print(f'Rescaled result: {self.big_fish_array.shape}')
 
+        max_frame = self.total_frames - 1
+
         self.current_frame = 0
+        
         self.frame_slider.setMinimum(0)
-        self.frame_slider.setMaximum(self.total_frames - 1)
+        self.frame_slider.setMaximum(max_frame)
         self.frame_slider.setValue(0)
-        self.frame_label.setText(f'{self.current_frame} / {self.total_frames - 1}')
+
+        self.frame_label.setText(f'{self.current_frame} / {max_frame}')
+
         self.radio_mouse.setChecked(True)
+
+        self.l_spinBox.setMaximum(max_frame)
+        self.r_spinBox.setMaximum(max_frame)
 
     def open_npz_file(self, fn):
         self.mask_fn_label.setText('Loaded')
