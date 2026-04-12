@@ -3,7 +3,6 @@ from PyQt5.QtGui import QImage, QPixmap, QCursor, QPainter, QColor
 from PyQt5.QtCore import Qt, pyqtSignal, QRect
 
 from tools.tool_modes import ToolMode
-from tools.mask_ops import flood_fill_mask_region
 
 class MyImageLabel(QLabel):
 
@@ -48,6 +47,7 @@ class MyImageLabel(QLabel):
 
         self.polygon_points = []
         self.polygon_hover_point = None
+        self.polygon_preview_enabled = True
 
     def contextMenuEvent(self, ev):
         menu = QMenu(self)
@@ -334,7 +334,7 @@ class MyImageLabel(QLabel):
 
         pixmap = QPixmap.fromImage(scaled_img)
 
-        if self.mode == ToolMode.POLYGON and self.polygon_points:
+        if self.mode == ToolMode.POLYGON and self.polygon_preview_enabled and self.polygon_points:
             painter = QPainter(pixmap)
             painter.setRenderHint(QPainter.RenderHint.Antialiasing)
             painter.setPen(QColor(0, 255, 0))
@@ -368,6 +368,10 @@ class MyImageLabel(QLabel):
         self.polygon_points = list(points)
         if not self.polygon_points:
             self.polygon_hover_point = None
+        self.show_image()
+
+    def set_polygon_preview_enabled(self, enabled):
+        self.polygon_preview_enabled = bool(enabled)
         self.show_image()
 
     def get_now_scale(self):
