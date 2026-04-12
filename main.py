@@ -34,6 +34,7 @@ from tools.tool_modes import ToolMode
 from tools.merge import merge_labels_in_range
 from tools.split import find_available_label, split_label_with_line
 
+from tools.polygon import apply_polygon_to_mask
 from ui_window import Ui_MainWindow
 
 class MainWindow(QMainWindow, Ui_MainWindow):
@@ -73,12 +74,17 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.radio_merge.toggled.connect(self.change_mode)
         self.radio_split.toggled.connect(self.change_mode)
         self.radio_picker.toggled.connect(self.change_mode)
+        self.radio_polygon.toggled.connect(self.change_mode)
 
         self.pushButton_left.clicked.connect(self.go_left)
         self.pushButton_right.clicked.connect(self.go_right)
 
         self.image_label.mergeAct.connect(self.merge_labels)
         self.image_label.splitAct.connect(self.split_label)
+
+        self.polygon_points = []
+        self.image_label.polygonPointAdded.connect(self.handle_polygon_point)
+        self.image_label.polygonCanceled.connect(self.cancel_polygon)
 
         self.total_frames = 0
         self.current_frame = 0
@@ -128,17 +134,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.shortcut_fill.activated.connect(lambda: self.radio_fill.setChecked(True))
 
         self.image_label.setFocusPolicy(Qt.ClickFocus)
-
-        # preview lives next to the Label spinbox
-        self.label_color_preview = QLabel(self.centralwidget)
-        self.label_color_preview.setFixedSize(24, 24)
-        self.label_color_preview.setStyleSheet("border: 1px solid black;")
-
-        self.label_color_text = QLabel(self.centralwidget)
-        self.label_color_text.setText("")
-
-        self.horizontalLayout_3.addWidget(self.label_color_preview)
-        self.horizontalLayout_3.addWidget(self.label_color_text)
 
         self.label_spinBox.valueChanged.connect(self.update_selected_label_preview)
         self.update_selected_label_preview()
@@ -238,6 +233,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.image_label.set_mode(ToolMode.MERGE)
         elif self.radio_split.isChecked():
             self.image_label.set_mode(ToolMode.SPLIT)
+        elif self.radio_polygon.isChecked():
+            self.image_label.set_mode(ToolMode.POLYGON)
+
 
     def update_selected_label_preview(self):
         label_val = int(self.label_spinBox.value())
@@ -272,6 +270,9 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             fn = os.path.join(folder, file_name)
             np.savez_compressed(fn, self.mask_data)
             self.msg_label.setText(f'File saved: {file_name}')
+
+    def on_tool_size_changed(self, value):
+        self.image_label.set_tool_size(value)
 
     def mouse_moved(self, x, y):
         if self.mask_data is None:
@@ -598,6 +599,72 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.commit_mask()
 
         self.msg_label.setText(f'Split label {target_label} into {target_label} and {new_label}')
+
+    def apply_polygon(self, points):
+        if self.mask_data is None:
+            self.msg_label.setText("Polygon: no mask loaded")
+            return
+
+        if len(points) < 3:
+            self.msg_label.setText("Polygon: need at least 3 points")
+            return
+
+        if self.current_backup is None:
+            self.current_backup = self.mask_data.copy()
+
+        target_label = int(self.label_spinBox.value())
+        fill_holes = self.polygon_fill_holes_checkBox.isChecked()
+
+        updated_frame, changed = apply_polygon_to_mask(
+            self.mask_data[self.current_frame],
+            points,
+            target_label,
+            fill_holes=fill_holes,
+        )
+
+        if not changed:
+            self.current_backup = None
+            self.msg_label.setText("Polygon: no changes made")
+            return
+
+        self.mask_data[self.current_frame] = updated_frame
+        self.update_image()
+        self.commit_mask()
+        self.msg_label.setText(
+            f"Polygon applied with label {target_label}"
+        )
+
+    def polygon_is_close_to_start(self, x, y):
+        if not self.polygon_points:
+            return False
+
+        first_x, first_y = self.polygon_points[0]
+        close_dist = int(self.polygon_close_dist_spinBox.value())
+
+        dx = x - first_x
+        dy = y - first_y
+        return (dx * dx + dy * dy) <= (close_dist * close_dist)
+    
+    def handle_polygon_point(self, x, y):
+        if self.mask_data is None:
+            self.msg_label.setText("Polygon: no mask loaded")
+            return
+
+        if len(self.polygon_points) >= 3 and self.polygon_is_close_to_start(x, y):
+            self.apply_polygon(self.polygon_points.copy())
+            self.polygon_points = []
+            self.image_label.set_polygon_points([])
+            return
+
+        self.polygon_points.append((x, y))
+        self.image_label.set_polygon_points(self.polygon_points)
+
+        self.msg_label.setText(f"Polygon points: {len(self.polygon_points)}")
+
+    def cancel_polygon(self):
+        self.polygon_points = []
+        self.image_label.set_polygon_points([])
+        self.msg_label.setText("Polygon canceled")
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)

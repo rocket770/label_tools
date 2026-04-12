@@ -8,3 +8,4 @@ class ToolMode(IntEnum):
     FILL = 4
     MERGE = 5
     SPLIT = 6
+    POLYGON = 7

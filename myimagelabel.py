@@ -18,6 +18,12 @@ class MyImageLabel(QLabel):
     fillAct = pyqtSignal(int, int)
     mergeAct = pyqtSignal(int, int)
     splitAct = pyqtSignal(int, int, int, int)
+    toolSizeChanged = pyqtSignal(int)
+
+    polygonFinished = pyqtSignal(list)
+    polygonPreviewChanged = pyqtSignal(list)
+    polygonCanceled = pyqtSignal()
+    polygonPointAdded = pyqtSignal(int, int)
 
     def __init__(self, parent=None):
         super().__init__(parent)
@@ -40,6 +46,9 @@ class MyImageLabel(QLabel):
         self.left_button_pressed = False
         self.split_start = None
 
+        self.polygon_points = []
+        self.polygon_hover_point = None
+
     def contextMenuEvent(self, ev):
         menu = QMenu(self)
         copy_action = QAction('Copy', self)
@@ -61,6 +70,10 @@ class MyImageLabel(QLabel):
         if self.mode in (ToolMode.ERASER, ToolMode.PEN, ToolMode.SPLIT):
             scale = self.get_now_scale()
             self.tool_size = max(int(round(scale)), 1)
+
+        if self.mode != ToolMode.POLYGON:
+            self.polygon_points = []
+            self.polygon_hover_point = None    
         self.update_tool()
 
     def update_tool(self):
@@ -158,6 +171,8 @@ class MyImageLabel(QLabel):
             if self.tool_size < 1:
                 self.tool_size = 1
             self.update_tool()
+
+            self.toolSizeChanged.emit(self.tool_size)
         return super().wheelEvent(event)
 
     def mouseMoveEvent(self, ev):
@@ -169,6 +184,10 @@ class MyImageLabel(QLabel):
             self.eraserAct.emit(*self.now_rect(x, y))
         if self.mode == ToolMode.PEN and self.left_button_pressed:
             self.penAct.emit(*self.now_rect(x, y))
+        if self.mode == ToolMode.POLYGON:
+            self.polygon_hover_point = (ox, oy)
+            self.show_image()
+
         return super().mouseMoveEvent(ev)
 
     def mousePressEvent(self, event):
@@ -217,6 +236,15 @@ class MyImageLabel(QLabel):
 
         if self.mode == ToolMode.SPLIT and event.button() == Qt.LeftButton:
             self.split_start = self.get_original_pos(event.x(), event.y())
+
+        if self.mode == ToolMode.POLYGON and event.button() == Qt.RightButton:
+            self.polygonCanceled.emit()
+            return
+        
+        if self.mode == ToolMode.POLYGON and event.button() == Qt.LeftButton:
+            ox, oy = self.get_original_pos(event.x(), event.y())
+            self.polygonPointAdded.emit(ox, oy)
+            return
 
         return super().mousePressEvent(event)
 
@@ -279,6 +307,10 @@ class MyImageLabel(QLabel):
             self.f_ry = float(self.ry)
         self.show_image()
 
+    def set_tool_size(self, size):
+        self.tool_size = max(int(size), 1)
+        self.update_tool()
+
     def show_image(self):
         if self.img is None:
             return
@@ -299,7 +331,44 @@ class MyImageLabel(QLabel):
             int(round(width * scale)),
             int(round(height * scale)),
         )
-        self.setPixmap(QPixmap.fromImage(scaled_img))
+
+        pixmap = QPixmap.fromImage(scaled_img)
+
+        if self.mode == ToolMode.POLYGON and self.polygon_points:
+            painter = QPainter(pixmap)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            painter.setPen(QColor(0, 255, 0))
+
+            scaled_points = []
+            for px, py in self.polygon_points:
+                sx = int(round((px - self.lx) * scale))
+                sy = int(round((py - self.ly) * scale))
+                scaled_points.append((sx, sy))
+
+            for i in range(len(scaled_points) - 1):
+                x1, y1 = scaled_points[i]
+                x2, y2 = scaled_points[i + 1]
+                painter.drawLine(x1, y1, x2, y2)
+
+            for x, y in scaled_points:
+                painter.drawEllipse(x - 3, y - 3, 6, 6)
+
+            if self.polygon_hover_point is not None and len(scaled_points) > 0:
+                hx, hy = self.polygon_hover_point
+                hsx = int(round((hx - self.lx) * scale))
+                hsy = int(round((hy - self.ly) * scale))
+                lx, ly = scaled_points[-1]
+                painter.drawLine(lx, ly, hsx, hsy)
+
+            painter.end()
+
+        self.setPixmap(pixmap)
+
+    def set_polygon_points(self, points):
+        self.polygon_points = list(points)
+        if not self.polygon_points:
+            self.polygon_hover_point = None
+        self.show_image()
 
     def get_now_scale(self):
         container_width = self.width()

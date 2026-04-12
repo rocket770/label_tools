@@ -370,6 +370,112 @@
              </property>
             </widget>
            </item>
+           <item row="7" column="0">
+            <widget class="QRadioButton" name="radio_polygon">
+             <property name="text">
+              <string>Polygon</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </widget>
+      </item>
+
+      <item>
+       <widget class="QGroupBox" name="tool_options_groupBox">
+        <property name="title">
+         <string>Tool Options</string>
+        </property>
+        <layout class="QVBoxLayout" name="verticalLayout_tool_options">
+         <property name="spacing">
+          <number>6</number>
+         </property>
+
+         <item>
+          <widget class="QLabel" name="label_tool_hint">
+           <property name="wordWrap">
+            <bool>true</bool>
+           </property>
+           <property name="text">
+            <string>No extra options for this tool.</string>
+           </property>
+          </widget>
+         </item>
+
+         <item>
+          <layout class="QGridLayout" name="gridLayout_tool_options">
+           <property name="horizontalSpacing">
+            <number>6</number>
+           </property>
+           <property name="verticalSpacing">
+            <number>6</number>
+           </property>
+
+           <item row="0" column="0">
+            <widget class="QLabel" name="label_tool_size">
+             <property name="text">
+              <string>Tool size:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="0" column="1">
+            <widget class="QSpinBox" name="tool_size_spinBox">
+             <property name="minimum">
+              <number>1</number>
+             </property>
+             <property name="maximum">
+              <number>200</number>
+             </property>
+             <property name="value">
+              <number>5</number>
+             </property>
+            </widget>
+           </item>
+
+           <item row="1" column="0">
+            <widget class="QLabel" name="label_polygon_close_dist">
+             <property name="text">
+              <string>Close distance:</string>
+             </property>
+            </widget>
+           </item>
+           <item row="1" column="1">
+            <widget class="QSpinBox" name="polygon_close_dist_spinBox">
+             <property name="minimum">
+              <number>3</number>
+             </property>
+             <property name="maximum">
+              <number>100</number>
+             </property>
+             <property name="value">
+              <number>12</number>
+             </property>
+            </widget>
+           </item>
+
+           <item row="2" column="0" colspan="2">
+            <widget class="QCheckBox" name="polygon_preview_checkBox">
+             <property name="text">
+              <string>Preview outline</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
+             </property>
+            </widget>
+           </item>
+
+           <item row="3" column="0" colspan="2">
+            <widget class="QCheckBox" name="polygon_fill_holes_checkBox">
+             <property name="text">
+              <string>Fill holes</string>
+             </property>
+             <property name="checked">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
           </layout>
          </item>
         </layout>
@@ -401,6 +507,35 @@
           </property>
           <property name="maximum">
            <number>255</number>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_color_preview">
+          <property name="minimumSize">
+           <size>
+            <width>24</width>
+            <height>24</height>
+           </size>
+          </property>
+          <property name="maximumSize">
+           <size>
+            <width>24</width>
+            <height>24</height>
+           </size>
+          </property>
+          <property name="styleSheet">
+           <string notr="true">border: 1px solid black;</string>
+          </property>
+          <property name="text">
+           <string/>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QLabel" name="label_color_text">
+          <property name="text">
+           <string/>
           </property>
          </widget>
         </item>
