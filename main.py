@@ -13,28 +13,27 @@ from PyQt5.QtGui import QImage, QKeySequence
 from PyQt5.QtWidgets import (
     QApplication,
     QFileDialog,
-    QHBoxLayout,
-    QLabel,
     QMainWindow,
-    QRadioButton,
     QShortcut,
 )
 
 from color_mapper import ColorMapper
 from tools.label_tools import format_label_text, get_label_display_rgb
+from tools.brush_controller import BrushToolController
 from tools.mask_ops import (
-    apply_mask_brush,
     copy_mask_region,
     count_cells,
     delete_mask_region,
     paste_mask_region,
     flood_fill_mask_region,
 )
-from tools.tool_modes import ToolMode
 from tools.merge import merge_labels_in_range
 from tools.split import find_available_label, split_label_with_line
-
-from tools.polygon import apply_polygon_to_mask
+from tools.polygon_controller import PolygonToolController
+from tools.tool_registry import (
+    ToolRegistry,
+    build_default_tool_registrations,
+)
 from ui_window import Ui_MainWindow
 
 class MainWindow(QMainWindow, Ui_MainWindow):
@@ -44,12 +43,33 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.setupUi(self)
 
         self.color_mapper = ColorMapper()
+        self.brush_tool = BrushToolController(self)
+        self.polygon_tool = PolygonToolController(self)
 
+        self._init_state()
+        self._connect_general_signals()
+        self._setup_tool_registry()
+        self._setup_shortcuts()
+        self._init_ui_state()
+
+        self.setAcceptDrops(True)
+
+    def _init_state(self):
+        self.total_frames = 0
+        self.current_frame = 0
+        self.tif_array = None
+        self.big_fish_array = None
+        self.mask_data = None
+        self.copyed_frame = None
+        self.current_backup = None
+        self.mask_stack = deque(maxlen=10)
+        self.pending_merge_label = None
+        self.selected_colormap = self.colormap_combo.currentIndex()
+
+    def _connect_general_signals(self):
         self.actionload.triggered.connect(self.open_files)
         self.actionsave.triggered.connect(self.save)
         self.frame_slider.valueChanged.connect(self.change_frame)
-
-        self.selected_colormap = self.colormap_combo.currentIndex()
         self.colormap_combo.currentIndexChanged.connect(self.update_colormap)
 
         self.normalize_checkBox.stateChanged.connect(self.update_image)
@@ -58,45 +78,34 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.tif_checkbox.stateChanged.connect(self.update_image)
 
         self.image_label.mouseMoved.connect(self.mouse_moved)
-        self.image_label.eraserAct.connect(self.erase_mask)
-        self.image_label.penAct.connect(self.draw_mask)
         self.image_label.copyAct.connect(self.copy_mask)
         self.image_label.pasteAct.connect(self.paste_mask)
         self.image_label.deleteAct.connect(self.delete_mask)
         self.image_label.commitAct.connect(self.commit_mask)
-        self.image_label.pickAct.connect(self.pick_label)
-        self.image_label.fillAct.connect(self.fill_mask)
-        
-        self.radio_fill.toggled.connect(self.change_mode)
-        self.radio_mouse.toggled.connect(self.change_mode)
-        self.radio_pen.toggled.connect(self.change_mode)
-        self.radio_eraser.toggled.connect(self.change_mode)
-        self.radio_merge.toggled.connect(self.change_mode)
-        self.radio_split.toggled.connect(self.change_mode)
-        self.radio_picker.toggled.connect(self.change_mode)
-        self.radio_polygon.toggled.connect(self.change_mode)
 
         self.pushButton_left.clicked.connect(self.go_left)
         self.pushButton_right.clicked.connect(self.go_right)
 
-        self.image_label.mergeAct.connect(self.merge_labels)
-        self.image_label.splitAct.connect(self.split_label)
+        self.tool_size_spinBox.valueChanged.connect(self.on_tool_size_changed)
+        self.image_label.toolSizeChanged.connect(self.tool_size_spinBox.setValue)
+        self.polygon_preview_checkBox.toggled.connect(
+            self.image_label.set_polygon_preview_enabled
+        )
 
-        self.polygon_points = []
-        self.image_label.polygonPointAdded.connect(self.handle_polygon_point)
-        self.image_label.polygonCanceled.connect(self.cancel_polygon)
+        self.label_spinBox.valueChanged.connect(self.update_selected_label_preview)
 
-        self.total_frames = 0
-        self.current_frame = 0
-        self.tif_array = None
-        self.big_fish_array = None
-        self.mask_data = None
+    def _setup_tool_registry(self):
+        self.tool_registry = ToolRegistry(
+            self,
+            self.image_label,
+            self.tool_options_stackedWidget,
+            self.tool_options_none_page,
+        )
 
-        self.copyed_frame = None
+        for registration in build_default_tool_registrations(self):
+            self.tool_registry.register(registration)
 
-        self.current_backup = None
-        self.mask_stack = deque(maxlen=10)
-
+    def _setup_shortcuts(self):
         self.shortcut_cancel = QShortcut(QKeySequence("Ctrl+Z"), self)
         self.shortcut_cancel.setContext(Qt.WindowShortcut)
         self.shortcut_cancel.activated.connect(self.cancel_action)
@@ -117,30 +126,18 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             )
         )
 
-        self.shortcut_eraser = QShortcut(QKeySequence("Ctrl+E"), self)
-        self.shortcut_eraser.setContext(Qt.WindowShortcut)
-        self.shortcut_eraser.activated.connect(lambda: self.radio_eraser.setChecked(True))
-
-        self.shortcut_pen = QShortcut(QKeySequence("Ctrl+P"), self)
-        self.shortcut_pen.setContext(Qt.WindowShortcut)
-        self.shortcut_pen.activated.connect(lambda: self.radio_pen.setChecked(True))
-
         self.shortcut_save = QShortcut(QKeySequence("Ctrl+S"), self)
         self.shortcut_save.setContext(Qt.WindowShortcut)
         self.shortcut_save.activated.connect(self.save)
 
-        self.shortcut_fill = QShortcut(QKeySequence("Ctrl+F"), self)
-        self.shortcut_fill.setContext(Qt.WindowShortcut)
-        self.shortcut_fill.activated.connect(lambda: self.radio_fill.setChecked(True))
-
+    def _init_ui_state(self):
         self.image_label.setFocusPolicy(Qt.ClickFocus)
-
-        self.label_spinBox.valueChanged.connect(self.update_selected_label_preview)
+        self.image_label.set_polygon_preview_enabled(
+            self.polygon_preview_checkBox.isChecked()
+        )
+        self.on_tool_size_changed(self.tool_size_spinBox.value())
         self.update_selected_label_preview()
-
-        self.pending_merge_label = None
-
-        self.setAcceptDrops(True)
+        self.tool_registry.initialize()
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
@@ -200,43 +197,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         )
         self.update_image()
 
-    def change_mode(self):
-        if self.tif_array is None and self.mask_data is None:
-            return
-
-        if self.radio_split.isChecked():
-            if self.multieditor_checkBox.isChecked():
-                self.multieditor_checkBox.blockSignals(True)
-                self.multieditor_checkBox.setChecked(False)
-                self.multieditor_checkBox.blockSignals(False)
-
-            self.multieditor_checkBox.setEnabled(False)
-            self.l_spinBox.setValue(self.current_frame)
-            self.r_spinBox.setValue(self.current_frame)
-        else:
-            self.multieditor_checkBox.setEnabled(True)
-
-        if not self.radio_merge.isChecked():
-            self.pending_merge_label = None
-
-        if self.radio_mouse.isChecked():
-            self.image_label.set_mode(ToolMode.MOUSE)
-        elif self.radio_eraser.isChecked():
-            self.image_label.set_mode(ToolMode.ERASER)
-        elif self.radio_pen.isChecked():
-            self.image_label.set_mode(ToolMode.PEN)
-        elif hasattr(self, 'radio_picker') and self.radio_picker.isChecked():
-            self.image_label.set_mode(ToolMode.EYEDROPPER)
-        elif self.radio_fill.isChecked():
-            self.image_label.set_mode(ToolMode.FILL)
-        elif self.radio_merge.isChecked():
-            self.image_label.set_mode(ToolMode.MERGE)
-        elif self.radio_split.isChecked():
-            self.image_label.set_mode(ToolMode.SPLIT)
-        elif self.radio_polygon.isChecked():
-            self.image_label.set_mode(ToolMode.POLYGON)
-
-
     def update_selected_label_preview(self):
         label_val = int(self.label_spinBox.value())
         r, g, b = get_label_display_rgb(self.color_mapper.color_table, label_val)
@@ -279,46 +239,6 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             self.detail_label.setText(f'{x} {y} -')
         else:
             self.detail_label.setText(f'{x} {y} {self.mask_data[self.current_frame, y, x]}')
-
-    def erase_mask(self, xl, xr, yl, yr):
-        print('erase')
-        if self.mask_data is None:
-            return
-        if self.current_backup is None:
-            self.current_backup = self.mask_data.copy()
-        self.mask_data = apply_mask_brush(
-            self.mask_data,
-            self.current_frame,
-            xl,
-            xr,
-            yl,
-            yr,
-            0,
-            multi_edit=self.multieditor_checkBox.isChecked(),
-            left_frame=self.l_spinBox.value(),
-            right_frame=self.r_spinBox.value(),
-        )
-        self.update_image()
-
-    def draw_mask(self, xl, xr, yl, yr):
-        print('draw')
-        if self.mask_data is None:
-            return
-        if self.current_backup is None:
-            self.current_backup = self.mask_data.copy()
-        self.mask_data = apply_mask_brush(
-            self.mask_data,
-            self.current_frame,
-            xl,
-            xr,
-            yl,
-            yr,
-            self.label_spinBox.value(),
-            multi_edit=self.multieditor_checkBox.isChecked(),
-            left_frame=self.l_spinBox.value(),
-            right_frame=self.r_spinBox.value(),
-        )
-        self.update_image()
 
     def commit_mask(self):
         print('commit')
@@ -600,74 +520,8 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         self.msg_label.setText(f'Split label {target_label} into {target_label} and {new_label}')
 
-    def apply_polygon(self, points):
-        if self.mask_data is None:
-            self.msg_label.setText("Polygon: no mask loaded")
-            return
-
-        if len(points) < 3:
-            self.msg_label.setText("Polygon: need at least 3 points")
-            return
-
-        if self.current_backup is None:
-            self.current_backup = self.mask_data.copy()
-
-        target_label = int(self.label_spinBox.value())
-        fill_holes = self.polygon_fill_holes_checkBox.isChecked()
-
-        updated_frame, changed = apply_polygon_to_mask(
-            self.mask_data[self.current_frame],
-            points,
-            target_label,
-            fill_holes=fill_holes,
-        )
-
-        if not changed:
-            self.current_backup = None
-            self.msg_label.setText("Polygon: no changes made")
-            return
-
-        self.mask_data[self.current_frame] = updated_frame
-        self.update_image()
-        self.commit_mask()
-        self.msg_label.setText(
-            f"Polygon applied with label {target_label}"
-        )
-
-    def polygon_is_close_to_start(self, x, y):
-        if not self.polygon_points:
-            return False
-
-        first_x, first_y = self.polygon_points[0]
-        close_dist = int(self.polygon_close_dist_spinBox.value())
-
-        dx = x - first_x
-        dy = y - first_y
-        return (dx * dx + dy * dy) <= (close_dist * close_dist)
-    
-    def handle_polygon_point(self, x, y):
-        if self.mask_data is None:
-            self.msg_label.setText("Polygon: no mask loaded")
-            return
-
-        if len(self.polygon_points) >= 3 and self.polygon_is_close_to_start(x, y):
-            self.apply_polygon(self.polygon_points.copy())
-            self.polygon_points = []
-            self.image_label.set_polygon_points([])
-            return
-
-        self.polygon_points.append((x, y))
-        self.image_label.set_polygon_points(self.polygon_points)
-
-        self.msg_label.setText(f"Polygon points: {len(self.polygon_points)}")
-
-    def cancel_polygon(self):
-        self.polygon_points = []
-        self.image_label.set_polygon_points([])
-        self.msg_label.setText("Polygon canceled")
-
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     window = MainWindow()
-    window.show()
+    window.showMaximized()
     sys.exit(app.exec_())
