@@ -247,6 +247,52 @@ Undo:
 - Use `Ctrl + Z`
 - The application keeps a limited undo history of recent committed edits
 
+## Building the App
+
+This repository already includes simple build entrypoints for both Windows and macOS.
+
+### Windows Build
+
+Recommended steps from the project root:
+
+```powershell
+py -3 -m venv .venv
+.venv\Scripts\Activate.ps1
+py -3 -m pip install --upgrade pip
+py -3 -m pip install pyinstaller pyqt5 pillow numpy opencv-python matplotlib big-fish
+.\build_windows.ps1
+```
+
+Output:
+
+- `dist\main\main.exe`
+
+Note:
+
+- This is a folder-style PyInstaller build, so you should distribute the whole `dist\main\` folder, not only the `.exe`.
+
+### macOS Build
+
+Build this on a Mac from the project root:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python3 -m pip install --upgrade pip
+python3 -m pip install pyinstaller pyqt5 pillow numpy opencv-python matplotlib big-fish
+chmod +x build_macos.sh
+./build_macos.sh
+```
+
+Output:
+
+- `dist/main.app`
+
+Notes:
+
+- macOS apps should be built on macOS rather than cross-compiled from Windows.
+- If you plan to share the app outside your own machine, you may later want to add code signing and notarization.
+
 ## Keyboard Shortcuts
 
 | Shortcut | Function |

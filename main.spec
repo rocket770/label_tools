@@ -1,16 +1,34 @@
 # -*- mode: python ; coding: utf-8 -*-
 
 import sys ; sys.setrecursionlimit(sys.getrecursionlimit() * 5)
+import os
+
+def find_ffi_dll():
+    search_roots = [sys.prefix, sys.base_prefix, sys.exec_prefix, sys.base_exec_prefix]
+    for root in search_roots:
+        root = os.path.abspath(root)
+        for subdir in ('Library\\bin', 'DLLs'):
+            candidate = os.path.join(root, subdir, 'ffi.dll')
+            if os.path.exists(candidate):
+                return candidate
+    for root, _, files in os.walk(sys.base_prefix):
+        if 'ffi.dll' in files:
+            return os.path.join(root, 'ffi.dll')
+    return None
+
+ffi_dll = find_ffi_dll()
+binaries = [(ffi_dll, '.')] if ffi_dll else []
+
 a = Analysis(
     ['main.py'],
     pathex=[],
-    binaries=[],
+    binaries=binaries,
     datas=[],
-    hiddenimports=[],
+    hiddenimports=['_ctypes'],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=['pkg_resources', 'setuptools'],
     noarchive=False,
     optimize=0,
 )
