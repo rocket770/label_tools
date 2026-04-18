@@ -1,6 +1,6 @@
 from PyQt5.QtWidgets import QLabel, QMenu, QAction
-from PyQt5.QtGui import QImage, QPixmap, QCursor, QPainter, QColor
-from PyQt5.QtCore import Qt, pyqtSignal, QRect
+from PyQt5.QtGui import QImage, QPixmap, QCursor, QPainter, QColor, QFont
+from PyQt5.QtCore import Qt, pyqtSignal, QRect, QPointF
 
 from tools.tool_modes import ToolMode
 
@@ -48,6 +48,7 @@ class MyImageLabel(QLabel):
         self.polygon_points = []
         self.polygon_hover_point = None
         self.polygon_preview_enabled = True
+        self.cell_id_overlays = []
 
     def contextMenuEvent(self, ev):
         menu = QMenu(self)
@@ -311,6 +312,10 @@ class MyImageLabel(QLabel):
         self.tool_size = max(int(size), 1)
         self.update_tool()
 
+    def set_cell_id_overlays(self, overlays):
+        self.cell_id_overlays = list(overlays)
+        self.show_image()
+
     def show_image(self):
         if self.img is None:
             return
@@ -362,6 +367,12 @@ class MyImageLabel(QLabel):
 
             painter.end()
 
+        if self.cell_id_overlays:
+            painter = QPainter(pixmap)
+            painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+            self._draw_cell_id_overlays(painter, scale)
+            painter.end()
+
         self.setPixmap(pixmap)
 
     def set_polygon_points(self, points):
@@ -383,3 +394,34 @@ class MyImageLabel(QLabel):
 
         scale = min(container_width / image_width, container_height / image_height)
         return scale
+
+    def _draw_cell_id_overlays(self, painter, scale):
+        if scale <= 0:
+            return
+
+        font = QFont(self.font())
+        font.setBold(True)
+        font.setPointSize(max(8, min(18, int(round(7 + scale * 0.35)))))
+        painter.setFont(font)
+
+        for overlay in self.cell_id_overlays:
+            ox = overlay["x"]
+            oy = overlay["y"]
+            text = overlay["text"]
+
+            if ox < self.lx or ox > self.rx or oy < self.ly or oy > self.ry:
+                continue
+
+            sx = (ox - self.lx) * scale
+            sy = (oy - self.ly) * scale
+
+            text_rect = painter.fontMetrics().boundingRect(text)
+            text_rect.moveCenter(QPointF(sx, sy).toPoint())
+            bg_rect = text_rect.adjusted(-4, -2, 4, 2)
+
+            painter.setPen(Qt.NoPen)
+            painter.setBrush(QColor(0, 0, 0, 170))
+            painter.drawRoundedRect(bg_rect, 4, 4)
+
+            painter.setPen(QColor(255, 255, 255))
+            painter.drawText(text_rect, Qt.AlignCenter, text)

@@ -731,6 +731,16 @@
         </item>
        </layout>
       </item>
+      <item>
+       <widget class="QCheckBox" name="show_cell_ids_checkBox">
+        <property name="text">
+         <string>Show Cell IDs</string>
+        </property>
+        <property name="checked">
+         <bool>true</bool>
+        </property>
+       </widget>
+      </item>
 
      </layout>
     </item>

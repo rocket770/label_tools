@@ -76,6 +76,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         self.big_fish_checkBox.stateChanged.connect(self.update_image)
         self.mask_checkbox.stateChanged.connect(self.update_image)
         self.tif_checkbox.stateChanged.connect(self.update_image)
+        self.show_cell_ids_checkBox.stateChanged.connect(self.update_image)
 
         self.image_label.mouseMoved.connect(self.mouse_moved)
         self.image_label.copyAct.connect(self.copy_mask)
@@ -344,6 +345,52 @@ class MainWindow(QMainWindow, Ui_MainWindow):
         mask_data = self.mask_data[self.current_frame].astype(np.uint8)
         return self.color_mapper.apply_custom_color_map_with_alpha(mask_data, 128)
 
+    def build_cell_id_overlays(self):
+        if self.mask_data is None or not self.show_cell_ids_checkBox.isChecked():
+            return []
+
+        mask_frame = self.mask_data[self.current_frame].astype(np.uint8)
+        overlays = []
+
+        for label_val in np.unique(mask_frame):
+            label_val = int(label_val)
+            if label_val == 0:
+                continue
+
+            label_mask = (mask_frame == label_val).astype(np.uint8)
+            component_count, component_map = cv2.connectedComponents(label_mask, connectivity=8)
+
+            for component_id in range(1, component_count):
+                component_mask = (component_map == component_id).astype(np.uint8)
+                area = int(component_mask.sum())
+                if area == 0:
+                    continue
+
+                distance = cv2.distanceTransform(component_mask, cv2.DIST_L2, 5)
+                _, max_distance, _, max_location = cv2.minMaxLoc(distance)
+
+                if max_distance <= 0:
+                    ys, xs = np.where(component_mask > 0)
+                    if len(xs) == 0:
+                        continue
+                    anchor_x = int(xs[len(xs) // 2])
+                    anchor_y = int(ys[len(ys) // 2])
+                else:
+                    anchor_x = int(max_location[0])
+                    anchor_y = int(max_location[1])
+
+                overlays.append(
+                    {
+                        "x": anchor_x,
+                        "y": anchor_y,
+                        "text": str(label_val),
+                        "area": area,
+                    }
+                )
+
+        overlays.sort(key=lambda item: item["area"], reverse=True)
+        return overlays
+
     def update_image(self):
         tif_frame = self.load_tif_frame()
         mask_frame = self.load_mask_frame()
@@ -351,6 +398,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
         if cnt == 0:
             self.image_label.clear()
+            self.image_label.set_cell_id_overlays([])
         else:
             if tif_frame is not None:
                 width, height, _ = tif_frame.shape
@@ -370,6 +418,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                     data = mask_frame[:, :, :3].copy().data
             qimg = QImage(data, width, height, QImage.Format_RGB888)
             self.image_label.load_image(qimg)
+            self.image_label.set_cell_id_overlays(self.build_cell_id_overlays())
 
         if self.mask_data is not None:
             val = count_cells(self.mask_data[self.current_frame])
