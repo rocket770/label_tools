@@ -12,6 +12,7 @@ class ToolRegistration:
     mode: ToolMode
     button: object
     option_page: object
+    help_text: str
     shortcut: object = None
     signal_bindings: list = field(default_factory=list)
     on_activate: object = None
@@ -74,6 +75,8 @@ class ToolRegistry:
         registration = self.registrations.get(mode)
         page = self.default_page if registration is None else registration.option_page
         self.stacked_widget.setCurrentWidget(page)
+        self.window.update_tool_options_height()
+        self.window.set_tool_help(registration.help_text if registration is not None else "")
 
     def _handle_button_toggled(self, checked):
         if not checked:
@@ -120,11 +123,13 @@ def build_default_tool_registrations(window):
             mode=ToolMode.MOUSE,
             button=window.radio_mouse,
             option_page=window.tool_options_none_page,
+            help_text="Mouse: drag to zoom into an area; make a very small drag to reset to the full image.",
         ),
         ToolRegistration(
             mode=ToolMode.ERASER,
             button=window.radio_eraser,
             option_page=window.tool_options_brush_page,
+            help_text="Eraser: paints label 0 to remove mask regions; adjust Tool size, then click and drag.",
             shortcut="Ctrl+E",
             signal_bindings=[("eraserAct", window.brush_tool.erase)],
         ),
@@ -132,6 +137,7 @@ def build_default_tool_registrations(window):
             mode=ToolMode.PEN,
             button=window.radio_pen,
             option_page=window.tool_options_brush_page,
+            help_text="Pen: paints the selected label into the mask; choose a label, set Tool size, then click and drag.",
             shortcut="Ctrl+P",
             signal_bindings=[("penAct", window.brush_tool.draw)],
         ),
@@ -139,6 +145,7 @@ def build_default_tool_registrations(window):
             mode=ToolMode.FILL,
             button=window.radio_fill,
             option_page=window.tool_options_none_page,
+            help_text="Fill: relabels the clicked connected region; with multi-editor on, it applies across the selected frame range.",
             shortcut="Ctrl+F",
             signal_bindings=[("fillAct", window.fill_mask)],
         ),
@@ -146,12 +153,14 @@ def build_default_tool_registrations(window):
             mode=ToolMode.EYEDROPPER,
             button=window.radio_picker,
             option_page=window.tool_options_none_page,
+            help_text="Eyedropper: picks a label from the mask and makes it the active label; background clicks leave the current label unchanged.",
             signal_bindings=[("pickAct", window.pick_label)],
         ),
         ToolRegistration(
             mode=ToolMode.MERGE,
             button=window.radio_merge,
             option_page=window.tool_options_none_page,
+            help_text="Merge: click the label to keep, then click the label to merge into it; supports the selected multi-editor range.",
             signal_bindings=[("mergeAct", window.merge_labels)],
             on_deactivate=deactivate_merge_tool,
         ),
@@ -159,6 +168,7 @@ def build_default_tool_registrations(window):
             mode=ToolMode.SPLIT,
             button=window.radio_split,
             option_page=window.tool_options_brush_page,
+            help_text="Split: draw a line through one cell to divide it into two labels; uses Tool size as line thickness and works on the current frame only.",
             signal_bindings=[("splitAct", window.split_label)],
             on_activate=activate_split_tool,
             on_deactivate=deactivate_split_tool,
@@ -167,6 +177,7 @@ def build_default_tool_registrations(window):
             mode=ToolMode.POLYGON,
             button=window.radio_polygon,
             option_page=window.tool_options_polygon_page,
+            help_text="Polygon: left-click to place points, close near the first point to apply, and right-click to cancel; options control preview, holes, and apply scope.",
             signal_bindings=[
                 ("polygonPointAdded", window.polygon_tool.handle_point),
                 ("polygonCanceled", window.polygon_tool.cancel),

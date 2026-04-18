@@ -10,12 +10,7 @@ import numpy as np
 from PIL import Image
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QImage, QKeySequence
-from PyQt5.QtWidgets import (
-    QApplication,
-    QFileDialog,
-    QMainWindow,
-    QShortcut,
-)
+from PyQt5.QtWidgets import QApplication, QFileDialog, QLabel, QMainWindow, QShortcut
 
 from color_mapper import ColorMapper
 from tools.label_tools import format_label_text, get_label_display_rgb
@@ -133,12 +128,35 @@ class MainWindow(QMainWindow, Ui_MainWindow):
 
     def _init_ui_state(self):
         self.image_label.setFocusPolicy(Qt.ClickFocus)
+        self.tool_help_status_label = QLabel(self)
+        self.tool_help_status_label.setText("Select a tool to see a short usage hint.")
+        self.statusbar.addPermanentWidget(self.tool_help_status_label, 1)
         self.image_label.set_polygon_preview_enabled(
             self.polygon_preview_checkBox.isChecked()
         )
         self.on_tool_size_changed(self.tool_size_spinBox.value())
         self.update_selected_label_preview()
         self.tool_registry.initialize()
+
+    def set_tool_help(self, text):
+        self.tool_help_status_label.setText(text or "Select a tool to see a short usage hint.")
+
+    def update_tool_options_height(self):
+        current_page = self.tool_options_stackedWidget.currentWidget()
+        if current_page is None:
+            return
+
+        page_layout = current_page.layout()
+        page_height = (
+            page_layout.sizeHint().height()
+            if page_layout is not None
+            else current_page.sizeHint().height()
+        )
+        page_height = max(page_height, 0)
+
+        self.tool_options_stackedWidget.setFixedHeight(page_height)
+        self.tool_options_groupBox.adjustSize()
+        self.centralwidget.layout().activate()
 
     def dragEnterEvent(self, event):
         if event.mimeData().hasUrls():
