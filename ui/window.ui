@@ -876,7 +876,14 @@
     <addaction name="actionload"/>
     <addaction name="actionsave"/>
    </widget>
+   <widget class="QMenu" name="menuMasks">
+    <property name="title">
+     <string>Masks</string>
+    </property>
+    <addaction name="actionRepairNormalize"/>
+   </widget>
    <addaction name="menuFile"/>
+   <addaction name="menuMasks"/>
   </widget>
 
   <widget class="QStatusBar" name="statusbar"/>
@@ -889,6 +896,11 @@
   <action name="actionsave">
    <property name="text">
     <string>save</string>
+   </property>
+  </action>
+  <action name="actionRepairNormalize">
+   <property name="text">
+    <string>Repair and Normalize IDs</string>
    </property>
   </action>
  </widget>

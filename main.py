@@ -10,7 +10,14 @@ import numpy as np
 from PIL import Image
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QImage, QKeySequence
-from PyQt5.QtWidgets import QApplication, QFileDialog, QLabel, QMainWindow, QShortcut
+from PyQt5.QtWidgets import (
+    QApplication,
+    QFileDialog,
+    QLabel,
+    QMainWindow,
+    QMessageBox,
+    QShortcut,
+)
 
 from color_mapper import ColorMapper
 from tools.label_tools import format_label_text, get_label_display_rgb
@@ -23,6 +30,7 @@ from tools.mask_ops import (
     flood_fill_mask_region,
 )
 from tools.merge import merge_labels_in_range
+from tools.repair_normalize import repair_and_normalize_mask_stack
 from tools.split import find_available_label, split_label_with_line
 from tools.polygon_controller import PolygonToolController
 from tools.tool_registry import (
@@ -64,6 +72,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
     def _connect_general_signals(self):
         self.actionload.triggered.connect(self.open_files)
         self.actionsave.triggered.connect(self.save)
+        self.actionRepairNormalize.triggered.connect(self.repair_and_normalize_masks)
         self.frame_slider.valueChanged.connect(self.change_frame)
         self.colormap_combo.currentIndexChanged.connect(self.update_colormap)
 
@@ -249,6 +258,59 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             fn = os.path.join(folder, file_name)
             np.savez_compressed(fn, self.mask_data)
             self.msg_label.setText(f'File saved: {file_name}')
+
+    def repair_and_normalize_masks(self):
+        if self.mask_data is None:
+            self.msg_label.setText('Repair and normalize: no mask loaded')
+            return
+
+        self.current_backup = self.mask_data.copy()
+        QApplication.setOverrideCursor(Qt.WaitCursor)
+
+        try:
+            repaired_mask, report = repair_and_normalize_mask_stack(self.mask_data)
+        except ValueError as exc:
+            self.current_backup = None
+            self.msg_label.setText(str(exc))
+            QMessageBox.warning(self, 'Repair and Normalize', str(exc))
+            return
+        finally:
+            QApplication.restoreOverrideCursor()
+
+        if np.array_equal(repaired_mask, self.mask_data):
+            self.current_backup = None
+            summary = 'Repair and normalize found no ID changes to apply'
+            self.msg_label.setText(summary)
+            QMessageBox.information(self, 'Repair and Normalize', summary)
+            return
+
+        self.mask_data = repaired_mask
+        self.copyed_frame = np.zeros(
+            (repaired_mask.shape[1], repaired_mask.shape[2]),
+            dtype=repaired_mask.dtype,
+        )
+        self.update_image()
+        self.commit_mask()
+
+        summary = (
+            'Repair and normalize updated '
+            f'{report["changed_frames"]} frame(s), repaired '
+            f'{report["duplicate_regions_repaired"]} duplicate region(s), '
+            f'and used labels up to {report["max_label_used"]}'
+        )
+        details = (
+            f'Frames processed: {report["frames_processed"]}\n'
+            f'Frames changed: {report["changed_frames"]}\n'
+            f'Duplicate label groups found: {report["duplicate_label_groups"]}\n'
+            f'Duplicate disconnected regions repaired: {report["duplicate_regions_repaired"]}\n'
+            f'Matched by overlap: {report["overlap_matches"]}\n'
+            f'Matched by distance: {report["distance_matches"]}\n'
+            f'Tracks created: {report["tracks_created"]}\n'
+            f'Fallback labels used: {report["fallback_labels_used"]}\n'
+            f'Max label used: {report["max_label_used"]}'
+        )
+        self.msg_label.setText(summary)
+        QMessageBox.information(self, 'Repair and Normalize', details)
 
     def on_tool_size_changed(self, value):
         self.image_label.set_tool_size(value)
