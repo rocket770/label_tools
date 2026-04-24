@@ -40,6 +40,7 @@ The left panel contains the main display settings:
 - `Bigfish`: shows the rescaled Big-FISH version of the loaded image stack
 - `Mask`: toggles mask visibility
 - `Tif`: toggles raw image visibility
+- `Show Cell IDs`: draws the current mask label value inside each connected cell region
 
 For many annotation tasks, a good default starting point is:
 
@@ -49,6 +50,7 @@ For many annotation tasks, a good default starting point is:
 - `Tif`: enabled
 
 When both `Mask` and `Tif` are enabled, the software overlays the label mask on top of the image.
+When `Show Cell IDs` is enabled, disconnected regions that happen to share the same label are each annotated in-place, which makes duplicate-label problems easier to spot before cleanup.
 
 ## Interface Overview
 
@@ -221,6 +223,27 @@ Right-clicking in the image view opens a context menu with:
 
 These actions operate on mask regions and are useful for quick local corrections.
 
+## Mask Menu Actions
+
+The top menu also includes `Masks -> Repair and Normalize IDs`.
+
+This batch action relabels the full mask stack without changing the mask shapes themselves. It is intended for cases where:
+
+- the same cell flips between different IDs from frame to frame
+- two disconnected cells were given the same label in one frame
+
+Behavior:
+
+- Tracks connected cell regions across frames and keeps one consistent ID per cell when possible
+- Prefers the label a cell used most often across the stack
+- If multiple cells compete for the same preferred label, one keeps it and the others fall back to the next lowest available IDs
+- Repairs duplicate disconnected same-label regions by assigning them separate IDs
+- Runs as a single undoable operation
+
+Tip:
+
+- Turn on `Show Cell IDs` before or after running this action to quickly inspect whether IDs are now stable across frames.
+
 ## Zoom and Brush Behavior
 
 Mouse wheel behavior depends on modifiers:
@@ -313,13 +336,11 @@ Notes:
 1. Launch `main.exe`
 2. Load your `.tif` image stack and `.npz` mask
 3. Turn on both `Mask` and `Tif`
-4. Set `ColorMap` to `BONE` and enable `Normalize` if needed
-5. Choose the label you want to edit
-6. Use `Pen`, `Eraser`, `Fill`, `Merge`, `Split`, `Eyedropper`, or `Polygon` as needed
-7. Use multi-editor when you want the same correction across a frame range
-8. Save regularly with `Ctrl + S`
+4. Turn on `Show Cell IDs` if you want to inspect per-cell label consistency directly on the image
+5. Set `ColorMap` to `BONE` and enable `Normalize` if needed
+6. Run `Masks -> Repair and Normalize IDs` if the imported mask stack does not keep the same cell IDs across frames
+7. Choose the label you want to edit
+8. Use `Pen`, `Eraser`, `Fill`, `Merge`, `Split`, `Eyedropper`, or `Polygon` as needed
+9. Use multi-editor when you want the same correction across a frame range
+10. Save regularly with `Ctrl + S`
 
-## Notes
-
-- This tool is under active development and the interface may continue to evolve.
-- The documentation above reflects the current behavior of the application in this repository.
