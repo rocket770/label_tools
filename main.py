@@ -3,9 +3,7 @@ import sys
 from collections import deque
 from datetime import datetime
 
-import bigfish.stack as bf_stack
 import cv2
-import matplotlib
 import numpy as np
 from PIL import Image
 from PyQt5.QtCore import Qt
@@ -38,6 +36,28 @@ from tools.tool_registry import (
     build_default_tool_registrations,
 )
 from ui_window import Ui_MainWindow
+
+
+def rescale_stack_to_uint16(stack):
+    stack = np.asarray(stack)
+    rescaled = np.zeros_like(stack, dtype=np.uint16)
+
+    for index, frame in enumerate(stack):
+        frame_float = frame.astype(np.float32, copy=False)
+        min_val = float(frame_float.min())
+        max_val = float(frame_float.max())
+
+        if max_val <= min_val:
+            continue
+
+        scaled = (frame_float - min_val) * (65535.0 / (max_val - min_val))
+        rescaled[index] = np.clip(scaled, 0, 65535).astype(np.uint16)
+
+    return rescaled
+
+
+def apply_viridis_colormap(image_data):
+    return cv2.applyColorMap(image_data, cv2.COLORMAP_VIRIDIS)
 
 class MainWindow(QMainWindow, Ui_MainWindow):
 
@@ -365,7 +385,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
                 image.seek(i)
                 self.tif_array[i] = np.array(image)
 
-        self.big_fish_array = bf_stack.rescale(self.tif_array, 0)
+        self.big_fish_array = rescale_stack_to_uint16(self.tif_array)
         print(f'Rescaled result: {self.big_fish_array.shape}')
 
         max_frame = self.total_frames - 1
@@ -406,8 +426,7 @@ class MainWindow(QMainWindow, Ui_MainWindow):
             min_val = 0
             max_val = 65535
             norm_data = np.interp(self.big_fish_array[self.current_frame], (min_val, max_val), (0, 255)).astype(np.uint8)
-            mapped_data = matplotlib.colormaps['viridis'](norm_data)[:, :, :3]
-            colored_data = (mapped_data * 255).astype(np.uint8)
+            colored_data = apply_viridis_colormap(norm_data)
         else:
             min_val = 0
             max_val = 65535

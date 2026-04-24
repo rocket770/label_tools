@@ -39,7 +39,7 @@ The left panel contains the main display settings:
 
 - `ColorMap`: sets the image colormap for the `.tif` layer
 - `Normalize`: rescales the current image frame for higher contrast
-- `Bigfish`: shows the rescaled Big-FISH version of the loaded image stack
+- `Bigfish`: shows the app's rescaled high-contrast version of the loaded image stack
 - `Mask`: toggles mask visibility
 - `Tif`: toggles raw image visibility
 - `Show Cell IDs`: draws the current mask label value inside each connected cell region
@@ -284,7 +284,7 @@ Recommended steps from the project root:
 py -3 -m venv .venv
 .venv\Scripts\Activate.ps1
 py -3 -m pip install --upgrade pip
-py -3 -m pip install pyinstaller pyqt5 pillow numpy opencv-python matplotlib big-fish
+py -3 -m pip install pyinstaller pyqt5 pillow numpy opencv-python-headless
 .\build_windows.ps1
 ```
 
@@ -304,7 +304,7 @@ Build this on a Mac from the project root:
 python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install --upgrade pip
-python3 -m pip install pyinstaller pyqt5 pillow numpy opencv-python matplotlib big-fish
+python3 -m pip install pyinstaller pyqt5 pillow numpy opencv-python-headless
 chmod +x build_macos.sh
 ./build_macos.sh
 ```
@@ -345,4 +345,3 @@ Notes:
 8. Use `Pen`, `Eraser`, `Fill`, `Merge`, `Split`, `Eyedropper`, or `Polygon` as needed
 9. Use multi-editor when you want the same correction across a frame range
 10. Save regularly with `Ctrl + S`
-

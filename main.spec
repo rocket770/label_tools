@@ -19,6 +19,19 @@ def find_ffi_dll():
 ffi_dll = find_ffi_dll()
 binaries = [(ffi_dll, '.')] if ffi_dll else []
 
+
+def exclude_binary_suffixes(entries, suffixes):
+    normalized_suffixes = tuple(os.path.normcase(suffix) for suffix in suffixes)
+    filtered_entries = []
+
+    for entry in entries:
+        dest_name = os.path.normcase(entry[0])
+        if dest_name.endswith(normalized_suffixes):
+            continue
+        filtered_entries.append(entry)
+
+    return filtered_entries
+
 a = Analysis(
     ['main.py'],
     pathex=[],
@@ -28,9 +41,30 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['pkg_resources', 'setuptools'],
+    excludes=[
+        'bigfish',
+        'matplotlib',
+        'pandas',
+        'pkg_resources',
+        'scipy',
+        'setuptools',
+        'skimage',
+        'sklearn',
+    ],
     noarchive=False,
     optimize=0,
+)
+a.binaries = exclude_binary_suffixes(
+    a.binaries,
+    [
+        'cv2\\opencv_videoio_ffmpeg4130_64.dll',
+        'PyQt5\\Qt5\\bin\\Qt5Qml.dll',
+        'PyQt5\\Qt5\\bin\\Qt5Quick.dll',
+        'PyQt5\\Qt5\\bin\\libGLESv2.dll',
+        'PyQt5\\Qt5\\bin\\opengl32sw.dll',
+        'PyQt5\\Qt5\\plugins\\platforms\\qminimal.dll',
+        'PyQt5\\Qt5\\plugins\\platforms\\qoffscreen.dll',
+    ],
 )
 pyz = PYZ(a.pure)
 
