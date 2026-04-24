@@ -9,6 +9,8 @@ This project is based on the original `label_tools` repository by Wenwen La:
 
 ## Getting Started
 
+Download the latest release here: https://github.com/rocket770/label_tools/releases/tag/Release
+
 Launch the executable:
 
 ```text
