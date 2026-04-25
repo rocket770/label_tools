@@ -14,8 +14,7 @@ This project is based on the original `label_tools` repository by Wenwen La:
 3. [What to Look For When Annotating](#3-what-to-look-for-when-annotating)
 4. [How to Use the Custom Annotation Software](#4-how-to-use-the-custom-annotation-software)
 5. [How to Use Napari](#5-how-to-use-napari)
-6. [Suggested Additions and Documentation Structure](#6-suggested-additions-and-documentation-structure)
-7. [Building the App](#7-building-the-app)
+6. [Building the App](#6-building-the-app)
 
 ---
 
@@ -718,6 +717,7 @@ Useful navigation details:
 If you need compressed `.npz` output exactly like the custom software saves, confirm the expected save/export step before doing the final annotation pass in Napari.
 
 ---
+
 ## 6. Building the App
 
 This repository includes simple build entrypoints for both Windows and macOS.
@@ -762,4 +762,3 @@ Output:
 Notes:
 
 - macOS apps should be built on macOS rather than cross-compiled from Windows.
-- If you plan to share the app outside your own machine, you may later want to add code signing and notarization.
