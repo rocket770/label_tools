@@ -393,11 +393,10 @@ If the imported mask has unstable IDs, run `Masks -> Repair and Normalize IDs` b
 
 ### 4.2 Main Interface Screenshot
 
-> TODO: Add a screenshot of the custom software here.
->
-> Recommended image: full main window after loading both a `.tif` image stack and a `.npz` mask. Show the left panel with the loaded filenames, `Mask` and `Tif` enabled, `ColorMap` set to `BONE`, `Normalize` enabled, the tools panel visible, and a few mask labels visible over the image.
->
-> Suggested file path: `content/custom-software-main.png`
+<div align="left">
+<img src="./content/custom-software-main.png" width="700">
+<p><em>Main custom software interface with image stack, mask overlay, display controls, tools, and frame navigation visible.</em></p>
+</div>
 
 ### 4.3 Controls Cheat Sheet
 
@@ -428,6 +427,11 @@ The left panel shows the current cell count, frame index, and cursor information
 The label section lets you select the target label ID used by editing tools, preview that label's display color, and see the formatted label text for the selected ID. `Eyedropper` can also set the current label directly from an existing mask region.
 
 #### Tool Selection
+
+<div align="left">
+<img src="./content/custom-software-tools.png" width="700">
+<p><em>Tool panel and tool options used for mask cleanup.</em></p>
+</div>
 
 | Tool | Use it when you need to | Main note |
 |------|--------------------------|-----------|
@@ -461,6 +465,11 @@ The label section lets you select the target label ID used by editing tools, pre
 
 `multi-editor` applies supported edits across a frame range.
 
+<div align="left">
+<img src="./content/custom-software-multieditor.png" width="700">
+<p><em>Multi-editor controls for applying supported edits across the selected frame range.</em></p>
+</div>
+
 | Control | Meaning |
 |---------|---------|
 | `multi-editor` | Enables or disables range editing |
@@ -476,6 +485,11 @@ Supported multi-editor actions:
 Split is always limited to the current frame and temporarily disables multi-editor while active. Polygon currently applies to the current frame only. If multi-editor is off, `L` and `R` follow the current frame automatically.
 
 The top menu also includes `Masks -> Repair and Normalize IDs`. Use this when the same cell flips between different IDs, or when two disconnected cells were given the same label in one frame.
+
+<div align="left">
+<img src="./content/custom-software-repair-normalize.png" width="700">
+<p><em>Repair and Normalize IDs menu action for fixing ID switches and duplicate disconnected same-label regions.</em></p>
+</div>
 
 This action relabels the full mask stack without changing mask shapes. It tracks connected regions across frames, keeps one consistent ID per cell when possible, repairs duplicate disconnected same-label regions, and runs as a single undoable operation.
 
