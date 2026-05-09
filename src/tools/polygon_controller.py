@@ -1,4 +1,4 @@
-from tools.polygon import apply_polygon_to_mask
+from src.tools.polygon import apply_polygon_to_mask
 
 
 class PolygonToolController:

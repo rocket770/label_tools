@@ -731,7 +731,13 @@ py -3 -m venv .venv
 .venv\Scripts\Activate.ps1
 py -3 -m pip install --upgrade pip
 py -3 -m pip install pyinstaller pyqt5 pillow numpy opencv-python-headless
-.\build_windows.ps1
+.\src\build_windows.ps1
+```
+
+If PowerShell blocks local scripts on your machine, run the same build with a process-local policy bypass:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\src\build_windows.ps1
 ```
 
 Output:
@@ -751,8 +757,8 @@ python3 -m venv .venv
 source .venv/bin/activate
 python3 -m pip install --upgrade pip
 python3 -m pip install pyinstaller pyqt5 pillow numpy opencv-python-headless
-chmod +x build_macos.sh
-./build_macos.sh
+chmod +x src/build_macos.sh
+./src/build_macos.sh
 ```
 
 Output:

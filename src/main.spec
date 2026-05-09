@@ -3,6 +3,10 @@
 import sys ; sys.setrecursionlimit(sys.getrecursionlimit() * 5)
 import os
 
+spec_dir = os.path.abspath(SPECPATH)
+project_root = os.path.dirname(spec_dir)
+main_script = os.path.join(spec_dir, 'main.py')
+
 def find_ffi_dll():
     search_roots = [sys.prefix, sys.base_prefix, sys.exec_prefix, sys.base_exec_prefix]
     for root in search_roots:
@@ -33,8 +37,8 @@ def exclude_binary_suffixes(entries, suffixes):
     return filtered_entries
 
 a = Analysis(
-    ['main.py'],
-    pathex=[],
+    [main_script],
+    pathex=[project_root],
     binaries=binaries,
     datas=[],
     hiddenimports=['_ctypes'],

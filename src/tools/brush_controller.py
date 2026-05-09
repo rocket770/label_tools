@@ -1,4 +1,4 @@
-from tools.mask_ops import apply_mask_brush
+from src.tools.mask_ops import apply_mask_brush
 
 
 class BrushToolController:

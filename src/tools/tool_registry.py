@@ -4,7 +4,7 @@ from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QKeySequence
 from PyQt5.QtWidgets import QShortcut
 
-from tools.tool_modes import ToolMode
+from src.tools.tool_modes import ToolMode
 
 
 @dataclass

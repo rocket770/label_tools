@@ -440,4 +440,4 @@ class Ui_MainWindow(object):
         self.actionload.setText(_translate("MainWindow", "load"))
         self.actionsave.setText(_translate("MainWindow", "save"))
         self.actionRepairNormalize.setText(_translate("MainWindow", "Repair and Normalize IDs"))
-from myimagelabel import MyImageLabel
+from src.myimagelabel import MyImageLabel

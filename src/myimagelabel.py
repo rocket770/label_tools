@@ -2,7 +2,7 @@ from PyQt5.QtWidgets import QLabel, QMenu, QAction
 from PyQt5.QtGui import QImage, QPixmap, QCursor, QPainter, QColor, QFont
 from PyQt5.QtCore import Qt, pyqtSignal, QRect, QPointF
 
-from tools.tool_modes import ToolMode
+from src.tools.tool_modes import ToolMode
 
 class MyImageLabel(QLabel):
 

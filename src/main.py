@@ -3,6 +3,11 @@ import sys
 from collections import deque
 from datetime import datetime
 
+if __package__ in (None, ""):
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+
 import cv2
 import numpy as np
 from PIL import Image
@@ -17,25 +22,25 @@ from PyQt5.QtWidgets import (
     QShortcut,
 )
 
-from color_mapper import ColorMapper
-from tools.label_tools import format_label_text, get_label_display_rgb
-from tools.brush_controller import BrushToolController
-from tools.mask_ops import (
+from src.color_mapper import ColorMapper
+from src.tools.label_tools import format_label_text, get_label_display_rgb
+from src.tools.brush_controller import BrushToolController
+from src.tools.mask_ops import (
     copy_mask_region,
     count_cells,
     delete_mask_region,
     paste_mask_region,
     flood_fill_mask_region,
 )
-from tools.merge import merge_labels_in_range
-from tools.repair_normalize import repair_and_normalize_mask_stack
-from tools.split import find_available_label, split_label_with_line
-from tools.polygon_controller import PolygonToolController
-from tools.tool_registry import (
+from src.tools.merge import merge_labels_in_range
+from src.tools.repair_normalize import repair_and_normalize_mask_stack
+from src.tools.split import find_available_label, split_label_with_line
+from src.tools.polygon_controller import PolygonToolController
+from src.tools.tool_registry import (
     ToolRegistry,
     build_default_tool_registrations,
 )
-from ui_window import Ui_MainWindow
+from src.ui_window import Ui_MainWindow
 
 
 def rescale_stack_to_uint16(stack):
